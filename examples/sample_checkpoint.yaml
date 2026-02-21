@@ -1,0 +1,15 @@
+# Sample checkpoint configuration for ValidateX
+# A checkpoint ties together a data source and an expectation suite.
+
+name: daily_user_validation
+suite_path: suites/user_data_quality.yaml
+
+data_source:
+  type: csv
+  path: data/users.csv
+
+engine: pandas
+
+report:
+  html: reports/user_validation_report.html
+  json: reports/user_validation_report.json

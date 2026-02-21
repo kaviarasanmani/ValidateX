@@ -1,0 +1,405 @@
+{
+  "suite_name": "user_data_quality",
+  "success": true,
+  "statistics": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0,
+    "errors": 0,
+    "success_percent": 100.0,
+    "overall_success": true,
+    "quality_score": 100.0,
+    "run_time": "2026-02-21T22:18:50.339942",
+    "run_duration_seconds": 0.005
+  },
+  "quality_score": 100.0,
+  "column_health": [
+    {
+      "column": "age",
+      "checks": 2,
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "balance",
+      "checks": 2,
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "email",
+      "checks": 4,
+      "passed": 4,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": 0,
+      "null_percent": 0.0,
+      "unique_count": 100,
+      "unique_percent": 100.0
+    },
+    {
+      "column": "status",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "user_id",
+      "checks": 3,
+      "passed": 3,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": 0,
+      "null_percent": 0.0,
+      "unique_count": 100,
+      "unique_percent": 100.0
+    },
+    {
+      "column": "username",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": 0,
+      "null_percent": 0.0,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "__table__",
+      "checks": 2,
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    }
+  ],
+  "data_source": "sample_users_dataframe",
+  "engine": "pandas",
+  "results": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": null,
+      "observed_value": 100,
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 50,
+        "max_value": 500,
+        "actual_count": 100
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_table_column_count_to_equal",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": null,
+      "observed_value": 7,
+      "element_count": 0,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "expected_count": 7,
+        "actual_count": 7
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "user_id",
+      "observed_value": [
+        "user_id",
+        "username",
+        "email",
+        "age",
+        "status",
+        "balance",
+        "signup_date"
+      ],
+      "element_count": 0,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "column_exists": true
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "email",
+      "observed_value": [
+        "user_id",
+        "username",
+        "email",
+        "age",
+        "status",
+        "balance",
+        "signup_date"
+      ],
+      "element_count": 0,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "column_exists": true
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_not_be_null",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "user_id",
+      "observed_value": 0,
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "null_count": 0,
+        "total_count": 100
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_not_be_null",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "username",
+      "observed_value": 0,
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "null_count": 0,
+        "total_count": 100
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_not_be_null",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "email",
+      "observed_value": 0,
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "null_count": 0,
+        "total_count": 100
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "user_id",
+      "observed_value": "100 unique out of 100",
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "duplicate_count": 0
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "email",
+      "observed_value": "100 unique out of 100",
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "duplicate_count": 0
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "age",
+      "observed_value": {
+        "min": 20,
+        "max": 69
+      },
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 0,
+        "max_value": 150,
+        "strict_min": false,
+        "strict_max": false
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "balance",
+      "observed_value": {
+        "min": 100.0,
+        "max": 1139.5
+      },
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 0,
+        "max_value": 10000,
+        "strict_min": false,
+        "strict_max": false
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "status",
+      "observed_value": {
+        "unique_values": 3
+      },
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "value_set": [
+          "inactive",
+          "active",
+          "pending"
+        ]
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "email",
+      "observed_value": null,
+      "element_count": 100,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "regex": "^[\\w.]+@[\\w]+\\.\\w+$"
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_mean_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "info",
+      "column": "age",
+      "observed_value": 44.5,
+      "element_count": 0,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 20,
+        "max_value": 80,
+        "column_mean": 44.5
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_mean_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "info",
+      "column": "balance",
+      "observed_value": 619.75,
+      "element_count": 0,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 0,
+        "max_value": 2000,
+        "column_mean": 619.75
+      },
+      "exception_info": null,
+      "meta": {}
+    }
+  ]
+}

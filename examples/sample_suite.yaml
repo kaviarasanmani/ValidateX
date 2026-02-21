@@ -1,0 +1,76 @@
+# Sample expectation suite for ValidateX
+# This file defines data quality rules for a user dataset.
+
+suite_name: user_data_quality
+meta:
+  description: "Data quality expectations for the users table"
+  owner: "data-engineering"
+  created: "2026-02-21"
+
+expectations:
+  # ── Table-level checks ──
+  - expectation_type: expect_table_row_count_to_be_between
+    kwargs:
+      min_value: 1
+      max_value: 1000000
+
+  - expectation_type: expect_table_column_count_to_equal
+    kwargs:
+      value: 6
+
+  # ── Column existence ──
+  - expectation_type: expect_column_to_exist
+    column: user_id
+
+  - expectation_type: expect_column_to_exist
+    column: username
+
+  - expectation_type: expect_column_to_exist
+    column: email
+
+  # ── Null checks ──
+  - expectation_type: expect_column_to_not_be_null
+    column: user_id
+
+  - expectation_type: expect_column_to_not_be_null
+    column: username
+
+  - expectation_type: expect_column_to_not_be_null
+    column: email
+
+  # ── Uniqueness ──
+  - expectation_type: expect_column_values_to_be_unique
+    column: user_id
+
+  - expectation_type: expect_column_values_to_be_unique
+    column: email
+
+  # ── Range checks ──
+  - expectation_type: expect_column_values_to_be_between
+    column: age
+    kwargs:
+      min_value: 0
+      max_value: 150
+
+  # ── Set membership ──
+  - expectation_type: expect_column_values_to_be_in_set
+    column: status
+    kwargs:
+      value_set:
+        - active
+        - inactive
+        - pending
+        - suspended
+
+  # ── Pattern matching ──
+  - expectation_type: expect_column_values_to_match_regex
+    column: email
+    kwargs:
+      regex: "^[\\w.]+@[\\w]+\\.\\w+$"
+
+  # ── Statistical checks ──
+  - expectation_type: expect_column_mean_to_be_between
+    column: age
+    kwargs:
+      min_value: 18
+      max_value: 80
