@@ -114,19 +114,19 @@ ValidateX is not a replacement for Great Expectations — it's a **focused alter
 
 ```bash
 # Basic install
-pip install -e .
+pip install validatex
 
 # With PySpark support
-pip install -e ".[spark]"
+pip install "validatex[spark]"
 
 # With database support
-pip install -e ".[database]"
+pip install "validatex[database]"
 
 # Full install
-pip install -e ".[all]"
+pip install "validatex[all]"
 
 # Development
-pip install -e ".[dev]"
+pip install "validatex[dev]"
 ```
 
 ---
