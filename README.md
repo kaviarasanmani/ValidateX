@@ -4,17 +4,35 @@
     <strong>A powerful, extensible data quality validation framework for Python.</strong>
   </p>
   <p align="center">
-    <img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status">
-    <img src="https://img.shields.io/badge/python-3.9+-blue?logo=python&logoColor=white" alt="Python 3.9+">
+    <!-- Build & Tests -->
+    <a href="https://github.com/kaviarasanmani/ValidateX/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status (Tests & CI)"></a>
+    <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Code Coverage">
+    <img src="https://img.shields.io/badge/tests-66%20passed-brightgreen" alt="Test Passing Rate">
+    <!-- Package & Language -->
+    <a href="https://pypi.org/project/validatex/"><img src="https://img.shields.io/pypi/v/validatex.svg" alt="PyPI Latest Version"></a>
+    <img src="https://img.shields.io/badge/python-3.9+-blue?logo=python&logoColor=white" alt="Supported Python Versions">
+    <!-- License & Style -->
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
-    <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage">
-    <img src="https://img.shields.io/badge/tests-66%20passed-brightgreen" alt="Tests">
-    <img src="https://img.shields.io/github/v/release/kaviarasanmani/ValidateX" alt="GitHub release">
-    <img src="https://img.shields.io/badge/code%20style-black-000000" alt="Code style: black">
+    <img src="https://img.shields.io/badge/code%20style-black-000000" alt="Code Style: black">
+  </p>
+  <p align="center">
+    <em>Badges represent (from left to right): CI/CD Build Status, Code Coverage, Test Count, Latest PyPI Release, Supported Python Versions, License, and Code Style.</em>
   </p>
 </p>
 
 ValidateX provides a comprehensive suite of tools for validating, profiling, and monitoring data quality across **Pandas** and **PySpark** DataFrames. Inspired by Great Expectations, it offers a simpler, more focused approach with modern, production-ready HTML reports and an intuitive API.
+
+## 📑 Table of Contents
+- [🖼️ Report Preview](#️-report-preview)
+- [🤔 Why ValidateX?](#-why-validatex)
+- [🎯 Who Is This For?](#-who-is-this-for)
+- [✨ Features](#-features)
+- [📦 Installation](#-installation)
+- [🏁 Quick Start](#-quick-start)
+- [🤖 Automate with CI/CD](#-automate-with-cicd)
+- [🎯 Data Quality Score](#-data-quality-score)
+- [📋 Available Expectations](#-available-expectations)
+- [🚀 Roadmap](#-roadmap)
 
 ---
 
@@ -481,6 +499,12 @@ data = result.to_dict()
 - [ ] Great Expectations suite import/migration
 - [ ] Web dashboard for multi-dataset monitoring
 - [ ] dbt integration plugin
+
+### Versioning
+ValidateX follows [Semantic Versioning](https://semver.org/). 
+- **MAJOR** version for incompatible API changes
+- **MINOR** version for backwards-compatible new functionality
+- **PATCH** version for backwards-compatible bug fixes
 
 ---
 

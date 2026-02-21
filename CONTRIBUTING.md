@@ -41,10 +41,20 @@ If you're creating a **new expectation**, look at `validatex/expectations/column
 
 ### 4. Run tests and linting again
 
-Once your changes are ready, run tests and ensure coverage hasn't dropped:
+Once your changes are ready, run tests and ensure coverage hasn't dropped. Also, ensure your code passes static analysis checks:
 
 ```bash
+# Run tests with coverage
 pytest tests/ -v --cov=validatex
+
+# Format code with Black
+black validatex tests
+
+# Lint with Flake8
+flake8 validatex tests
+
+# Run type checker with mypy
+mypy validatex
 ```
 
 ### 5. Submit a Pull Request

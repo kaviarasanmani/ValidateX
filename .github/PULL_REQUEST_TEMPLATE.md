@@ -19,3 +19,10 @@ Please describe the tests that you ran to verify your changes. Include any relev
 **Environment (please complete the following information):**
  - Python version:
  - Engine(s) tested against:
+
+## Reviewer Checklist
+Reviewers should specifically look for:
+- [ ] Code is formatted with `black` and passes `flake8` styling.
+- [ ] `mypy` type hints are correct and complete for new APIs.
+- [ ] Test coverage includes edge cases (empty dataframes, malformed inputs), and both **Pandas** / **PySpark** paths if applicable.
+- [ ] New APIs/Expectations are properly registered and use appropriate severity levels.

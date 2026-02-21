@@ -39,6 +39,8 @@ setup(
             "pytest-cov>=4.0",
             "black>=22.0",
             "flake8>=5.0",
+            "mypy>=1.0.0",
+            "ruff>=0.1.0",
         ],
     },
     entry_points={
