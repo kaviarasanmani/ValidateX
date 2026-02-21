@@ -9,17 +9,17 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
-
 # ---------------------------------------------------------------------------
 # 1. expect_column_to_exist
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -48,6 +48,7 @@ class ExpectColumnToExist(Expectation):
 # ---------------------------------------------------------------------------
 # 2. expect_column_to_not_be_null
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -89,12 +90,15 @@ class ExpectColumnToNotBeNull(Expectation):
 # 3. expect_column_values_to_be_unique
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeUnique(Expectation):
     """Expect all values in a column to be unique (no duplicates)."""
 
-    expectation_type: str = field(init=False, default="expect_column_values_to_be_unique")
+    expectation_type: str = field(
+        init=False, default="expect_column_values_to_be_unique"
+    )
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         total = len(df)
@@ -113,7 +117,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
-        from pyspark.sql import functions as F
+        pass
 
         total = df.count()
         distinct_count = df.select(self.column).distinct().count()
@@ -132,6 +136,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
 # ---------------------------------------------------------------------------
 # 4. expect_column_values_to_be_between
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -152,14 +157,30 @@ class ExpectColumnValuesToBeBetween(Expectation):
         total = len(series)
 
         if strict_min:
-            mask_low = series <= min_val if min_val is not None else pd.Series(False, index=series.index)
+            mask_low = (
+                series <= min_val
+                if min_val is not None
+                else pd.Series(False, index=series.index)
+            )
         else:
-            mask_low = series < min_val if min_val is not None else pd.Series(False, index=series.index)
+            mask_low = (
+                series < min_val
+                if min_val is not None
+                else pd.Series(False, index=series.index)
+            )
 
         if strict_max:
-            mask_high = series >= max_val if max_val is not None else pd.Series(False, index=series.index)
+            mask_high = (
+                series >= max_val
+                if max_val is not None
+                else pd.Series(False, index=series.index)
+            )
         else:
-            mask_high = series > max_val if max_val is not None else pd.Series(False, index=series.index)
+            mask_high = (
+                series > max_val
+                if max_val is not None
+                else pd.Series(False, index=series.index)
+            )
 
         unexpected_mask = mask_low | mask_high
         unexpected_count = int(unexpected_mask.sum())
@@ -205,6 +226,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
         if conditions:
             from functools import reduce
             import operator
+
             combined = reduce(operator.__or__, conditions)
             unexpected_count = filtered.filter(combined).count()
         else:
@@ -226,6 +248,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
 # ---------------------------------------------------------------------------
 # 5. expect_column_values_to_be_in_set
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -278,6 +301,7 @@ class ExpectColumnValuesToBeInSet(Expectation):
 # 6. expect_column_values_to_not_be_in_set
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToNotBeInSet(Expectation):
@@ -328,6 +352,7 @@ class ExpectColumnValuesToNotBeInSet(Expectation):
 # 7. expect_column_values_to_match_regex
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToMatchRegex(Expectation):
@@ -363,9 +388,7 @@ class ExpectColumnValuesToMatchRegex(Expectation):
         col = F.col(self.column)
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
-        unexpected_count = filtered.filter(
-            ~col.cast("string").rlike(regex)
-        ).count()
+        unexpected_count = filtered.filter(~col.cast("string").rlike(regex)).count()
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
@@ -380,6 +403,7 @@ class ExpectColumnValuesToMatchRegex(Expectation):
 # ---------------------------------------------------------------------------
 # 8. expect_column_values_to_be_of_type
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -415,6 +439,7 @@ class ExpectColumnValuesToBeOfType(Expectation):
 # 9. expect_column_values_to_be_dateutil_parseable
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeDateutilParseable(Expectation):
@@ -445,6 +470,7 @@ class ExpectColumnValuesToBeDateutilParseable(Expectation):
 # ---------------------------------------------------------------------------
 # 10. expect_column_value_lengths_to_be_between
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -506,14 +532,13 @@ class ExpectColumnValueLengthsToBeBetween(Expectation):
 # 11. expect_column_max_to_be_between
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnMaxToBeBetween(Expectation):
     """Expect the maximum value of a column to be between min_value and max_value."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_max_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_column_max_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
@@ -556,14 +581,13 @@ class ExpectColumnMaxToBeBetween(Expectation):
 # 12. expect_column_min_to_be_between
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnMinToBeBetween(Expectation):
     """Expect the minimum value of a column to be between min_value and max_value."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_min_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_column_min_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
@@ -606,6 +630,7 @@ class ExpectColumnMinToBeBetween(Expectation):
 # 13. expect_column_mean_to_be_between
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnMeanToBeBetween(Expectation):
@@ -629,7 +654,11 @@ class ExpectColumnMeanToBeBetween(Expectation):
         return self._build_result(
             success=success,
             observed_value=round(col_mean, 4),
-            details={"min_value": min_val, "max_value": max_val, "column_mean": round(col_mean, 4)},
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_mean": round(col_mean, 4),
+            },
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
@@ -656,6 +685,7 @@ class ExpectColumnMeanToBeBetween(Expectation):
 # 14. expect_column_stdev_to_be_between
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnStdevToBeBetween(Expectation):
@@ -679,13 +709,18 @@ class ExpectColumnStdevToBeBetween(Expectation):
         return self._build_result(
             success=success,
             observed_value=round(col_std, 4),
-            details={"min_value": min_val, "max_value": max_val, "column_stdev": round(col_std, 4)},
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_stdev": round(col_std, 4),
+            },
         )
 
 
 # ---------------------------------------------------------------------------
 # 15. expect_column_distinct_values_to_be_in_set
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -707,13 +742,15 @@ class ExpectColumnDistinctValuesToBeInSet(Expectation):
             observed_value={"distinct_values": list(actual_values)[:20]},
             element_count=total_distinct,
             unexpected_count=len(unexpected),
-            unexpected_percent=(len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0,
+            unexpected_percent=(
+                (len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0
+            ),
             unexpected_values=list(unexpected)[:20],
             details={"value_set": list(value_set)},
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
-        from pyspark.sql import functions as F
+        pass
 
         value_set = set(self.kwargs.get("value_set", []))
         row_list = df.select(self.column).distinct().collect()
@@ -732,6 +769,7 @@ class ExpectColumnDistinctValuesToBeInSet(Expectation):
 # ---------------------------------------------------------------------------
 # 16. expect_column_proportion_of_unique_values_to_be_between
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass

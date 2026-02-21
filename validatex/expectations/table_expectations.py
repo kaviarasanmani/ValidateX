@@ -8,26 +8,24 @@ on individual columns.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
-
 # ---------------------------------------------------------------------------
 # 1. expect_table_row_count_to_equal
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
 class ExpectTableRowCountToEqual(Expectation):
     """Expect the total number of rows to equal an exact count."""
 
-    expectation_type: str = field(
-        init=False, default="expect_table_row_count_to_equal"
-    )
+    expectation_type: str = field(init=False, default="expect_table_row_count_to_equal")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         expected = self.kwargs.get("value", 0)
@@ -53,6 +51,7 @@ class ExpectTableRowCountToEqual(Expectation):
 # ---------------------------------------------------------------------------
 # 2. expect_table_row_count_to_be_between
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -100,6 +99,7 @@ class ExpectTableRowCountToBeBetween(Expectation):
 # 3. expect_table_columns_to_match_ordered_list
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectTableColumnsToMatchOrderedList(Expectation):
@@ -143,6 +143,7 @@ class ExpectTableColumnsToMatchOrderedList(Expectation):
 # ---------------------------------------------------------------------------
 # 4. expect_table_columns_to_match_set
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -197,6 +198,7 @@ class ExpectTableColumnsToMatchSet(Expectation):
 # ---------------------------------------------------------------------------
 # 5. expect_table_column_count_to_equal
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass

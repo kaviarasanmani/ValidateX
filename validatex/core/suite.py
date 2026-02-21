@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import yaml
+import yaml  # type: ignore
 
 from validatex.core.expectation import Expectation, get_expectation_class
 
@@ -94,7 +94,7 @@ class ExpectationSuite:
         return json.dumps(self.to_dict(), indent=indent, default=str)
 
     def to_yaml(self) -> str:
-        return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False)
+        return str(yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False))
 
     def save(self, filepath: str) -> None:
         """Save to YAML or JSON based on file extension."""

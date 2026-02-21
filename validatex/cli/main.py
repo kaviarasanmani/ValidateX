@@ -23,7 +23,6 @@ Usage examples
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -40,14 +39,16 @@ console = Console()
 @click.version_option(version="1.0.0", prog_name="ValidateX")
 def cli():
     """ValidateX — Data Quality Validation Framework 🚀"""
-    pass
 
 
 # ── validate ──────────────────────────────────────────────────────────────
 
+
 @cli.command()
 @click.option("--data", "-d", required=True, help="Path to data file (CSV, Parquet).")
-@click.option("--suite", "-s", required=True, help="Path to expectation suite (YAML/JSON).")
+@click.option(
+    "--suite", "-s", required=True, help="Path to expectation suite (YAML/JSON)."
+)
 @click.option("--engine", "-e", default="pandas", help="Engine: pandas or spark.")
 @click.option("--report", "-r", default=None, help="Output HTML report path.")
 @click.option("--json-report", "-j", default=None, help="Output JSON report path.")
@@ -74,7 +75,9 @@ def validate(data, suite, engine, report, json_report):
     # Load data
     console.print(f"  📂 Loading data:  [cyan]{data}[/cyan]")
     df = _load_data_file(data, engine)
-    console.print(f"     Shape: [bold]{df.shape[0]}[/bold] rows × [bold]{df.shape[1]}[/bold] columns")
+    console.print(
+        f"     Shape: [bold]{df.shape[0]}[/bold] rows × [bold]{df.shape[1]}[/bold] columns"
+    )
 
     # Run validation
     console.print("  ⏳ Running validations...\n")
@@ -98,6 +101,7 @@ def validate(data, suite, engine, report, json_report):
 
 
 # ── run (checkpoint) ─────────────────────────────────────────────────────
+
 
 @cli.command()
 @click.option("--checkpoint", "-c", required=True, help="Path to checkpoint YAML/JSON.")
@@ -143,6 +147,7 @@ def run(checkpoint):
 
 # ── profile ───────────────────────────────────────────────────────────────
 
+
 @cli.command()
 @click.option("--data", "-d", required=True, help="Path to data file.")
 @click.option("--suggest", is_flag=True, help="Auto-suggest an expectation suite.")
@@ -179,11 +184,15 @@ def profile(data, suggest, output):
 
 # ── list-expectations ────────────────────────────────────────────────────
 
+
 @cli.command("list-expectations")
 def list_expectations():
     """List all available expectation types."""
     import validatex.expectations  # noqa: F401
-    from validatex.core.expectation import list_expectations as _list_exp, get_expectation_class
+    from validatex.core.expectation import (
+        list_expectations as _list_exp,
+        get_expectation_class,
+    )
 
     table = Table(
         title="Available Expectations",
@@ -211,6 +220,7 @@ def list_expectations():
 
 
 # ── init ──────────────────────────────────────────────────────────────────
+
 
 @cli.command()
 @click.option("--dir", "-d", "directory", default=".", help="Project directory.")
@@ -286,6 +296,7 @@ report:
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
+
 
 def _load_data_file(filepath: str, engine: str = "pandas"):
     """Auto-detect file type and load."""

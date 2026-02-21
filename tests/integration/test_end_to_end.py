@@ -4,7 +4,6 @@ Integration tests — end-to-end validation pipeline.
 
 import json
 import os
-from pathlib import Path
 
 import pytest
 import pandas as pd
@@ -20,20 +19,22 @@ from validatex.datasources.dataframe_source import DataFrameSource
 @pytest.fixture
 def sample_csv(tmp_path):
     """Create a sample CSV file for testing."""
-    df = pd.DataFrame({
-        "user_id": [1, 2, 3, 4, 5],
-        "username": ["alice", "bob", "charlie", "diana", "eve"],
-        "age": [25, 30, 35, 28, 42],
-        "email": [
-            "alice@test.com",
-            "bob@test.com",
-            "charlie@test.com",
-            "diana@test.com",
-            "eve@test.com",
-        ],
-        "status": ["active", "active", "inactive", "active", "pending"],
-        "balance": [100.50, 200.75, 50.00, 300.25, 150.00],
-    })
+    df = pd.DataFrame(
+        {
+            "user_id": [1, 2, 3, 4, 5],
+            "username": ["alice", "bob", "charlie", "diana", "eve"],
+            "age": [25, 30, 35, 28, 42],
+            "email": [
+                "alice@test.com",
+                "bob@test.com",
+                "charlie@test.com",
+                "diana@test.com",
+                "eve@test.com",
+            ],
+            "status": ["active", "active", "inactive", "active", "pending"],
+            "balance": [100.50, 200.75, 50.00, 300.25, 150.00],
+        }
+    )
     path = tmp_path / "users.csv"
     df.to_csv(path, index=False)
     return str(path)
@@ -54,9 +55,22 @@ class TestEndToEnd:
             .add("expect_column_to_exist", column="user_id")
             .add("expect_column_to_not_be_null", column="user_id")
             .add("expect_column_values_to_be_unique", column="user_id")
-            .add("expect_column_values_to_be_between", column="age", min_value=0, max_value=150)
-            .add("expect_column_values_to_be_in_set", column="status", value_set=["active", "inactive", "pending"])
-            .add("expect_column_values_to_match_regex", column="email", regex=r"^[\w.]+@[\w]+\.\w+$")
+            .add(
+                "expect_column_values_to_be_between",
+                column="age",
+                min_value=0,
+                max_value=150,
+            )
+            .add(
+                "expect_column_values_to_be_in_set",
+                column="status",
+                value_set=["active", "inactive", "pending"],
+            )
+            .add(
+                "expect_column_values_to_match_regex",
+                column="email",
+                regex=r"^[\w.]+@[\w]+\.\w+$",
+            )
             .add("expect_table_row_count_to_be_between", min_value=1, max_value=1000)
         )
 
@@ -119,7 +133,12 @@ class TestEndToEnd:
         suite = (
             ExpectationSuite("save_load_test")
             .add("expect_column_to_exist", column="user_id")
-            .add("expect_column_values_to_be_between", column="age", min_value=0, max_value=100)
+            .add(
+                "expect_column_values_to_be_between",
+                column="age",
+                min_value=0,
+                max_value=100,
+            )
         )
 
         # Save
@@ -138,10 +157,12 @@ class TestEndToEnd:
 
     def test_dataframe_source(self):
         """Validate using DataFrameSource directly."""
-        df = pd.DataFrame({
-            "x": [1, 2, 3],
-            "y": [10, 20, 30],
-        })
+        df = pd.DataFrame(
+            {
+                "x": [1, 2, 3],
+                "y": [10, 20, 30],
+            }
+        )
 
         source = DataFrameSource(df, name="in_memory")
         data = source.load_pandas()
@@ -149,9 +170,18 @@ class TestEndToEnd:
         suite = (
             ExpectationSuite("direct_df")
             .add("expect_table_row_count_to_equal", value=3)
-            .add("expect_column_values_to_be_between", column="x", min_value=1, max_value=3)
-            .add("expect_column_pair_values_a_to_be_greater_than_b",
-                 column_a="y", column_b="x", or_equal=False)
+            .add(
+                "expect_column_values_to_be_between",
+                column="x",
+                min_value=1,
+                max_value=3,
+            )
+            .add(
+                "expect_column_pair_values_a_to_be_greater_than_b",
+                column_a="y",
+                column_b="x",
+                or_equal=False,
+            )
         )
 
         result = validate(data, suite)
@@ -164,7 +194,12 @@ class TestEndToEnd:
         suite = (
             ExpectationSuite("failing_test")
             .add("expect_column_to_exist", column="nonexistent_column")
-            .add("expect_column_values_to_be_between", column="age", min_value=30, max_value=35)
+            .add(
+                "expect_column_values_to_be_between",
+                column="age",
+                min_value=30,
+                max_value=35,
+            )
             .add("expect_table_row_count_to_equal", value=100)
         )
 

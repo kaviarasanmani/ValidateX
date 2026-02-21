@@ -4,54 +4,60 @@ Unit tests for ValidateX expectations.
 
 import pytest
 import pandas as pd
-import numpy as np
 
 # Ensure expectations are registered
 import validatex.expectations  # noqa: F401
 from validatex.core.expectation import get_expectation_class, list_expectations
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_df():
     """A sample DataFrame for testing."""
-    return pd.DataFrame({
-        "id": [1, 2, 3, 4, 5],
-        "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
-        "age": [25, 30, 35, 28, 42],
-        "email": [
-            "alice@test.com",
-            "bob@test.com",
-            "charlie@test.com",
-            "diana@test.com",
-            "eve@test.com",
-        ],
-        "status": ["active", "active", "inactive", "active", "pending"],
-        "score": [85.5, 92.3, 78.1, 95.0, 88.7],
-    })
+    return pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
+            "age": [25, 30, 35, 28, 42],
+            "email": [
+                "alice@test.com",
+                "bob@test.com",
+                "charlie@test.com",
+                "diana@test.com",
+                "eve@test.com",
+            ],
+            "status": ["active", "active", "inactive", "active", "pending"],
+            "score": [85.5, 92.3, 78.1, 95.0, 88.7],
+        }
+    )
 
 
 @pytest.fixture
 def df_with_nulls():
     """DataFrame with null values."""
-    return pd.DataFrame({
-        "id": [1, 2, 3, None, 5],
-        "name": ["Alice", None, "Charlie", "Diana", None],
-        "value": [10, 20, None, 40, 50],
-    })
+    return pd.DataFrame(
+        {
+            "id": [1, 2, 3, None, 5],
+            "name": ["Alice", None, "Charlie", "Diana", None],
+            "value": [10, 20, None, 40, 50],
+        }
+    )
 
 
 @pytest.fixture
 def df_with_duplicates():
     """DataFrame with duplicate values."""
-    return pd.DataFrame({
-        "id": [1, 2, 2, 3, 3],
-        "category": ["A", "B", "B", "A", "C"],
-    })
+    return pd.DataFrame(
+        {
+            "id": [1, 2, 2, 3, 3],
+            "category": ["A", "B", "B", "A", "C"],
+        }
+    )
 
 
 # ── Test: Expectation Registration ───────────────────────────────────────
+
 
 class TestExpectationRegistry:
     def test_list_expectations_not_empty(self):
@@ -69,6 +75,7 @@ class TestExpectationRegistry:
 
 
 # ── Test: Column Expectations ────────────────────────────────────────────
+
 
 class TestExpectColumnToExist:
     def test_pass(self, sample_df):
@@ -127,7 +134,12 @@ class TestExpectColumnValuesToBeBetween:
     def test_strict_bounds(self, sample_df):
         exp = get_expectation_class("expect_column_values_to_be_between")(
             column="age",
-            kwargs={"min_value": 25, "max_value": 42, "strict_min": True, "strict_max": True},
+            kwargs={
+                "min_value": 25,
+                "max_value": 42,
+                "strict_min": True,
+                "strict_max": True,
+            },
         )
         result = exp.validate(sample_df)
         # 25 and 42 are in the data; with strict bounds they should fail
@@ -227,6 +239,7 @@ class TestExpectColumnMeanToBeBetween:
 
 # ── Test: Table Expectations ─────────────────────────────────────────────
 
+
 class TestExpectTableRowCountToEqual:
     def test_pass(self, sample_df):
         exp = get_expectation_class("expect_table_row_count_to_equal")(
@@ -266,7 +279,15 @@ class TestExpectTableColumnsToMatchSet:
     def test_fail_missing(self, sample_df):
         exp = get_expectation_class("expect_table_columns_to_match_set")(
             kwargs={
-                "column_set": ["id", "name", "age", "email", "status", "score", "extra"],
+                "column_set": [
+                    "id",
+                    "name",
+                    "age",
+                    "email",
+                    "status",
+                    "score",
+                    "extra",
+                ],
                 "exact_match": True,
             },
         )
@@ -275,6 +296,7 @@ class TestExpectTableColumnsToMatchSet:
 
 
 # ── Test: Aggregate Expectations ─────────────────────────────────────────
+
 
 class TestExpectColumnPairValuesToBeEqual:
     def test_pass(self):
@@ -296,10 +318,12 @@ class TestExpectColumnPairValuesToBeEqual:
 
 class TestExpectCompoundColumnsToBeUnique:
     def test_pass(self):
-        df = pd.DataFrame({
-            "first": ["A", "A", "B"],
-            "second": [1, 2, 1],
-        })
+        df = pd.DataFrame(
+            {
+                "first": ["A", "A", "B"],
+                "second": [1, 2, 1],
+            }
+        )
         exp = get_expectation_class("expect_compound_columns_to_be_unique")(
             kwargs={"column_list": ["first", "second"]}
         )
@@ -307,10 +331,12 @@ class TestExpectCompoundColumnsToBeUnique:
         assert result.success is True
 
     def test_fail(self):
-        df = pd.DataFrame({
-            "first": ["A", "A", "B"],
-            "second": [1, 1, 1],
-        })
+        df = pd.DataFrame(
+            {
+                "first": ["A", "A", "B"],
+                "second": [1, 1, 1],
+            }
+        )
         exp = get_expectation_class("expect_compound_columns_to_be_unique")(
             kwargs={"column_list": ["first", "second"]}
         )

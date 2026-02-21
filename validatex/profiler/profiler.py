@@ -48,9 +48,15 @@ class ColumnProfile:
             "unique_percent": round(self.unique_percent, 2),
             "min_value": self._safe(self.min_value),
             "max_value": self._safe(self.max_value),
-            "mean_value": round(self.mean_value, 4) if self.mean_value is not None else None,
-            "std_value": round(self.std_value, 4) if self.std_value is not None else None,
-            "median_value": round(self.median_value, 4) if self.median_value is not None else None,
+            "mean_value": (
+                round(self.mean_value, 4) if self.mean_value is not None else None
+            ),
+            "std_value": (
+                round(self.std_value, 4) if self.std_value is not None else None
+            ),
+            "median_value": (
+                round(self.median_value, 4) if self.median_value is not None else None
+            ),
             "min_length": self.min_length,
             "max_length": self.max_length,
             "top_values": self.top_values[:10],
@@ -85,7 +91,7 @@ class DataProfile:
         """Return a human-readable summary."""
         lines = [
             f"{'='*60}",
-            f"  ValidateX Data Profile",
+            "  ValidateX Data Profile",
             f"{'='*60}",
             f"  Rows    : {self.row_count:,}",
             f"  Columns : {self.column_count}",
@@ -95,7 +101,9 @@ class DataProfile:
             lines.append(f"\n  📊 Column: {cp.name}")
             lines.append(f"     Type       : {cp.dtype}")
             lines.append(f"     Nulls      : {cp.null_count} ({cp.null_percent:.1f}%)")
-            lines.append(f"     Unique     : {cp.unique_count} ({cp.unique_percent:.1f}%)")
+            lines.append(
+                f"     Unique     : {cp.unique_count} ({cp.unique_percent:.1f}%)"
+            )
             if cp.min_value is not None:
                 lines.append(f"     Min        : {cp.min_value}")
                 lines.append(f"     Max        : {cp.max_value}")
@@ -194,7 +202,11 @@ class DataProfiler:
 
             # Numeric range
             if cp.mean_value is not None and cp.min_value is not None:
-                margin = abs(cp.max_value - cp.min_value) * 0.1 if cp.max_value != cp.min_value else 1
+                margin = (
+                    abs(cp.max_value - cp.min_value) * 0.1
+                    if cp.max_value != cp.min_value
+                    else 1
+                )
                 suite.add(
                     "expect_column_values_to_be_between",
                     column=cp.name,
@@ -209,11 +221,7 @@ class DataProfiler:
                 or dtype_lower in ("str", "string")
                 or "string" in dtype_lower
             )
-            if (
-                is_string
-                and 0 < cp.unique_count <= 20
-                and cp.total_count > 0
-            ):
+            if is_string and 0 < cp.unique_count <= 20 and cp.total_count > 0:
                 values = [v["value"] for v in cp.top_values if v["value"] is not None]
                 if values:
                     suite.add(
@@ -223,7 +231,7 @@ class DataProfiler:
                     )
 
             # String length
-            if cp.min_length is not None:
+            if cp.min_length is not None and cp.max_length is not None:
                 suite.add(
                     "expect_column_value_lengths_to_be_between",
                     column=cp.name,
@@ -282,8 +290,7 @@ class DataProfiler:
         if len(non_null) > 0:
             value_counts = non_null.value_counts().head(10)
             cp.top_values = [
-                {"value": str(v), "count": int(c)}
-                for v, c in value_counts.items()
+                {"value": str(v), "count": int(c)} for v, c in value_counts.items()
             ]
 
         # Sample values

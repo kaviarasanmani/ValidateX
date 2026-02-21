@@ -19,7 +19,7 @@ import html
 import io
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from validatex.core.result import (
@@ -58,13 +58,12 @@ class HTMLReportGenerator:
         status_text = "ALL PASSED" if result.success else "VALIDATION FAILED"
         status_icon = "✅" if result.success else "❌"
         score_class = (
-            "score-high" if quality_score >= 90
-            else "score-mid" if quality_score >= 70
-            else "score-low"
+            "score-high"
+            if quality_score >= 90
+            else "score-mid" if quality_score >= 70 else "score-low"
         )
         run_time_str = (
-            result.run_time.strftime("%Y-%m-%d %H:%M:%S")
-            if result.run_time else "N/A"
+            result.run_time.strftime("%Y-%m-%d %H:%M:%S") if result.run_time else "N/A"
         )
 
         # Pre-compute JSON data for download
@@ -268,31 +267,39 @@ class HTMLReportGenerator:
     def _render_column_health(self, summaries: "List[ColumnHealthSummary]") -> str:
         rows: List[str] = []
         for s in summaries:
-            col_label = html.escape(s.column) if s.column != "__table__" else "<em>Table-level</em>"
+            col_label = (
+                html.escape(s.column)
+                if s.column != "__table__"
+                else "<em>Table-level</em>"
+            )
             health = s.health_score
             health_cls = (
-                "bar-high" if health >= 90
-                else "bar-mid" if health >= 70
-                else "bar-low"
+                "bar-high" if health >= 90 else "bar-mid" if health >= 70 else "bar-low"
             )
             null_str = f"{s.null_percent:.1f}%" if s.null_percent is not None else "—"
             null_bar = ""
             if s.null_percent is not None:
                 np_val = min(s.null_percent, 100)
-                bar_cls = "bar-low" if np_val > 10 else ("bar-mid" if np_val > 2 else "bar-high")
+                bar_cls = (
+                    "bar-low"
+                    if np_val > 10
+                    else ("bar-mid" if np_val > 2 else "bar-high")
+                )
                 null_bar = (
                     f'<div class="mini-bar-bg">'
                     f'<div class="mini-bar-fill {bar_cls}" style="width:{np_val}%"></div>'
-                    f'</div>'
+                    f"</div>"
                 )
-            unique_str = f"{s.unique_percent:.1f}%" if s.unique_percent is not None else "—"
+            unique_str = (
+                f"{s.unique_percent:.1f}%" if s.unique_percent is not None else "—"
+            )
             unique_bar = ""
             if s.unique_percent is not None:
                 up_val = min(s.unique_percent, 100)
                 unique_bar = (
                     f'<div class="mini-bar-bg">'
                     f'<div class="mini-bar-fill bar-high" style="width:{up_val}%"></div>'
-                    f'</div>'
+                    f"</div>"
                 )
 
             rows.append(f"""<tr>
@@ -341,9 +348,11 @@ class HTMLReportGenerator:
             unexpected_html = self._render_unexpected(r)
 
             # Details JSON
-            details_json = json.dumps(
-                to_native(r.details), indent=2, default=str
-            ) if r.details else "{}"
+            details_json = (
+                json.dumps(to_native(r.details), indent=2, default=str)
+                if r.details
+                else "{}"
+            )
             detail_id = f"detail-{i}"
 
             row_cls = f"row-{status_lower} row-sev-{sev}"
@@ -414,16 +423,31 @@ class HTMLReportGenerator:
     def _results_to_csv(results: "List[ExpectationResult]") -> str:
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow([
-            "#", "Status", "Severity", "Expectation", "Column",
-            "Observed", "Unexpected Count", "Unexpected %",
-        ])
+        writer.writerow(
+            [
+                "#",
+                "Status",
+                "Severity",
+                "Expectation",
+                "Column",
+                "Observed",
+                "Unexpected Count",
+                "Unexpected %",
+            ]
+        )
         for i, r in enumerate(results, 1):
-            writer.writerow([
-                i, r.status, r.severity, r.expectation_type,
-                r.column or "", r.human_observed,
-                r.unexpected_count, f"{r.unexpected_percent:.2f}",
-            ])
+            writer.writerow(
+                [
+                    i,
+                    r.status,
+                    r.severity,
+                    r.expectation_type,
+                    r.column or "",
+                    r.human_observed,
+                    r.unexpected_count,
+                    f"{r.unexpected_percent:.2f}",
+                ]
+            )
         return buf.getvalue()
 
     # ------------------------------------------------------------------

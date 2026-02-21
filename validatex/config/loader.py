@@ -8,10 +8,9 @@ so that validations can be run declaratively from the CLI.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-import yaml
+import yaml  # type: ignore
 
 from validatex.core.suite import ExpectationSuite
 
@@ -45,6 +44,7 @@ class CheckpointConfig:
         """Load the expectation suite from the configured path."""
         # Ensure expectations are registered
         import validatex.expectations  # noqa: F401
+
         return ExpectationSuite.load(self.suite_path)
 
     def load_data(self, spark_session: Any = None) -> Any:
@@ -56,12 +56,15 @@ class CheckpointConfig:
 
         if ds_type == "csv":
             from validatex.datasources.csv_source import CSVDataSource
-            source = CSVDataSource(filepath=path)
+
+            source: Any = CSVDataSource(filepath=path)
         elif ds_type == "parquet":
             from validatex.datasources.parquet_source import ParquetDataSource
+
             source = ParquetDataSource(filepath=path)
         elif ds_type == "database":
             from validatex.datasources.database_source import DatabaseDataSource
+
             source = DatabaseDataSource(connection_string=connection, query=query)
         else:
             raise ValueError(f"Unsupported data source type: {ds_type}")
@@ -87,6 +90,7 @@ def load_checkpoint(filepath: str) -> CheckpointConfig:
             data = yaml.safe_load(f)
         else:
             import json
+
             data = json.load(f)
 
     return CheckpointConfig(

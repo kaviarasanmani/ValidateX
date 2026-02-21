@@ -13,12 +13,14 @@ from validatex.core.result import ValidationResult
 
 @pytest.fixture
 def sample_df():
-    return pd.DataFrame({
-        "id": [1, 2, 3, 4, 5],
-        "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
-        "age": [25, 30, 35, 28, 42],
-        "status": ["active", "active", "inactive", "active", "pending"],
-    })
+    return pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
+            "age": [25, 30, 35, 28, 42],
+            "status": ["active", "active", "inactive", "active", "pending"],
+        }
+    )
 
 
 @pytest.fixture
@@ -26,7 +28,9 @@ def passing_suite():
     suite = ExpectationSuite("passing_suite")
     suite.add("expect_column_to_exist", column="id")
     suite.add("expect_column_to_not_be_null", column="id")
-    suite.add("expect_column_values_to_be_between", column="age", min_value=0, max_value=100)
+    suite.add(
+        "expect_column_values_to_be_between", column="age", min_value=0, max_value=100
+    )
     return suite
 
 
@@ -34,7 +38,9 @@ def passing_suite():
 def failing_suite():
     suite = ExpectationSuite("failing_suite")
     suite.add("expect_column_to_exist", column="nonexistent")
-    suite.add("expect_column_values_to_be_between", column="age", min_value=30, max_value=40)
+    suite.add(
+        "expect_column_values_to_be_between", column="age", min_value=30, max_value=40
+    )
     return suite
 
 
@@ -102,6 +108,7 @@ class TestValidationResult:
         filepath = str(tmp_path / "report.json")
         result.to_json_file(filepath)
         import json
+
         with open(filepath) as f:
             data = json.load(f)
         assert data["suite_name"] == "passing_suite"

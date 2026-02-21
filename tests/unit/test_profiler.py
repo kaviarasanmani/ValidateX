@@ -11,22 +11,26 @@ from validatex.profiler.profiler import DataProfiler, DataProfile
 
 @pytest.fixture
 def sample_df():
-    return pd.DataFrame({
-        "id": range(1, 101),
-        "name": [f"User_{i}" for i in range(100)],
-        "age": np.random.randint(18, 80, 100),
-        "score": np.random.uniform(0, 100, 100),
-        "category": np.random.choice(["A", "B", "C"], 100),
-        "email": [f"user{i}@example.com" for i in range(100)],
-    })
+    return pd.DataFrame(
+        {
+            "id": range(1, 101),
+            "name": [f"User_{i}" for i in range(100)],
+            "age": np.random.randint(18, 80, 100),
+            "score": np.random.uniform(0, 100, 100),
+            "category": np.random.choice(["A", "B", "C"], 100),
+            "email": [f"user{i}@example.com" for i in range(100)],
+        }
+    )
 
 
 @pytest.fixture
 def df_with_nulls():
-    return pd.DataFrame({
-        "a": [1, 2, None, 4, 5],
-        "b": ["x", None, "z", None, "w"],
-    })
+    return pd.DataFrame(
+        {
+            "a": [1, 2, None, 4, 5],
+            "b": ["x", None, "z", None, "w"],
+        }
+    )
 
 
 class TestDataProfiler:

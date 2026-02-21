@@ -7,13 +7,11 @@ that maps expectation type names to their implementation classes.
 
 from __future__ import annotations
 
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type
 
 from validatex.core.result import ExpectationResult
-
 
 # ---------------------------------------------------------------------------
 # Global Expectation Registry
@@ -34,8 +32,7 @@ def get_expectation_class(name: str) -> Type["Expectation"]:
     if name not in _EXPECTATION_REGISTRY:
         available = ", ".join(sorted(_EXPECTATION_REGISTRY.keys()))
         raise ValueError(
-            f"Unknown expectation type '{name}'. "
-            f"Available types: {available}"
+            f"Unknown expectation type '{name}'. " f"Available types: {available}"
         )
     return _EXPECTATION_REGISTRY[name]
 
@@ -48,6 +45,7 @@ def list_expectations() -> List[str]:
 # ---------------------------------------------------------------------------
 # Base Expectation
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Expectation(ABC):

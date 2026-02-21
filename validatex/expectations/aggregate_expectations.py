@@ -8,17 +8,17 @@ or aggregated computations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
-
 # ---------------------------------------------------------------------------
 # 1. expect_column_pair_values_a_to_be_greater_than_b
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -71,9 +71,7 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
         if col_b is None:
             raise ValueError("column_b is required")
 
-        valid = df.filter(
-            F.col(col_a).isNotNull() & F.col(col_b).isNotNull()
-        )
+        valid = df.filter(F.col(col_a).isNotNull() & F.col(col_b).isNotNull())
         total = valid.count()
 
         if or_equal:
@@ -95,6 +93,7 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
 # ---------------------------------------------------------------------------
 # 2. expect_column_pair_values_to_be_equal
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -135,9 +134,7 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
         if col_b is None:
             raise ValueError("column_b is required")
 
-        valid = df.filter(
-            F.col(col_a).isNotNull() & F.col(col_b).isNotNull()
-        )
+        valid = df.filter(F.col(col_a).isNotNull() & F.col(col_b).isNotNull())
         total = valid.count()
         unexpected_count = valid.filter(F.col(col_a) != F.col(col_b)).count()
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
@@ -155,14 +152,13 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
 # 3. expect_multicolumn_sum_to_equal
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectMulticolumnSumToEqual(Expectation):
     """Expect the sum across multiple columns (row-wise) to equal a target."""
 
-    expectation_type: str = field(
-        init=False, default="expect_multicolumn_sum_to_equal"
-    )
+    expectation_type: str = field(init=False, default="expect_multicolumn_sum_to_equal")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         columns = self.kwargs.get("column_list", [])
@@ -193,6 +189,7 @@ class ExpectMulticolumnSumToEqual(Expectation):
 # 4. expect_compound_columns_to_be_unique
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectCompoundColumnsToBeUnique(Expectation):
@@ -222,7 +219,7 @@ class ExpectCompoundColumnsToBeUnique(Expectation):
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
-        from pyspark.sql import functions as F
+        pass
 
         columns = self.kwargs.get("column_list", [])
         if not columns:
