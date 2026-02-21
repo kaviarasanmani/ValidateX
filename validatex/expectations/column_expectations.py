@@ -74,7 +74,7 @@ class ExpectColumnToNotBeNull(Expectation):
         from pyspark.sql import functions as F
 
         total = df.count()
-        null_count = df.filter(F.col(self.column).isNull()).count()
+        null_count = df.filter(F.col(str(self.column)).isNull()).count()
         pct = (null_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(null_count == 0),
@@ -213,7 +213,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
         strict_min = self.kwargs.get("strict_min", False)
         strict_max = self.kwargs.get("strict_max", False)
 
-        col = F.col(self.column)
+        col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
 
@@ -233,7 +233,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
             unexpected_count = 0
 
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        stats = filtered.select(F.min(self.column), F.max(self.column)).first()
+        stats = filtered.select(F.min(str(self.column)), F.max(str(self.column))).first()
 
         return self._build_result(
             success=(unexpected_count == 0),
@@ -282,7 +282,7 @@ class ExpectColumnValuesToBeInSet(Expectation):
         from pyspark.sql import functions as F
 
         value_set = list(self.kwargs.get("value_set", []))
-        col = F.col(self.column)
+        col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
         unexpected_count = filtered.filter(~col.isin(value_set)).count()
@@ -333,7 +333,7 @@ class ExpectColumnValuesToNotBeInSet(Expectation):
         from pyspark.sql import functions as F
 
         forbidden = list(self.kwargs.get("value_set", []))
-        col = F.col(self.column)
+        col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
         unexpected_count = filtered.filter(col.isin(forbidden)).count()
@@ -385,7 +385,7 @@ class ExpectColumnValuesToMatchRegex(Expectation):
         from pyspark.sql import functions as F
 
         regex = self.kwargs.get("regex", ".*")
-        col = F.col(self.column)
+        col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
         unexpected_count = filtered.filter(~col.cast("string").rlike(regex)).count()
@@ -510,7 +510,7 @@ class ExpectColumnValueLengthsToBeBetween(Expectation):
 
         min_len = self.kwargs.get("min_value", 0)
         max_len = self.kwargs.get("max_value", float("inf"))
-        col = F.col(self.column)
+        col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
         length_col = F.length(col.cast("string"))
@@ -562,7 +562,7 @@ class ExpectColumnMaxToBeBetween(Expectation):
 
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_max = df.agg(F.max(self.column)).first()[0]
+        col_max = df.agg(F.max(str(self.column))).first()[0]
 
         success = True
         if min_val is not None and col_max < min_val:
@@ -611,7 +611,7 @@ class ExpectColumnMinToBeBetween(Expectation):
 
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_min = df.agg(F.min(self.column)).first()[0]
+        col_min = df.agg(F.min(str(self.column))).first()[0]
 
         success = True
         if min_val is not None and col_min < min_val:
@@ -666,7 +666,7 @@ class ExpectColumnMeanToBeBetween(Expectation):
 
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_mean = df.agg(F.mean(self.column)).first()[0]
+        col_mean = df.agg(F.mean(str(self.column))).first()[0]
 
         success = True
         if min_val is not None and col_mean < min_val:

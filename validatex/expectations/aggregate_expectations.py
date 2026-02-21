@@ -64,8 +64,8 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
 
-        col_a = self.kwargs.get("column_a", self.column)
-        col_b = self.kwargs.get("column_b")
+        col_a = str(self.kwargs.get("column_a", self.column))
+        col_b = str(self.kwargs.get("column_b"))
         or_equal = self.kwargs.get("or_equal", False)
 
         if col_b is None:
@@ -128,8 +128,8 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
 
-        col_a = self.kwargs.get("column_a", self.column)
-        col_b = self.kwargs.get("column_b")
+        col_a = str(self.kwargs.get("column_a", self.column))
+        col_b = str(self.kwargs.get("column_b"))
 
         if col_b is None:
             raise ValueError("column_b is required")
