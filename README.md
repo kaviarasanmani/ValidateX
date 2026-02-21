@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
     <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage">
     <img src="https://img.shields.io/badge/tests-66%20passed-brightgreen" alt="Tests">
-    <img src="https://img.shields.io/badge/version-v0.1.0-purple" alt="Version">
+    <img src="https://img.shields.io/github/v/release/kaviarasanmani/ValidateX" alt="GitHub release">
     <img src="https://img.shields.io/badge/code%20style-black-000000" alt="Code style: black">
   </p>
 </p>
