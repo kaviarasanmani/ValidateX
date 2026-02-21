@@ -233,7 +233,9 @@ class ExpectColumnValuesToBeBetween(Expectation):
             unexpected_count = 0
 
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        stats = filtered.select(F.min(str(self.column)), F.max(str(self.column))).first()
+        stats = filtered.select(
+            F.min(str(self.column)), F.max(str(self.column))
+        ).first()
 
         return self._build_result(
             success=(unexpected_count == 0),
