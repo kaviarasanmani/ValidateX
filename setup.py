@@ -8,11 +8,11 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="validatex",
     version="1.0.0",
-    author="ValidateX Team",
+    author="Kaviarasan Mani",
     description="A powerful data quality validation framework inspired by Great Expectations",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/validatex/validatex",
+    url="https://github.com/kaviarasanmani/ValidateX",
     packages=find_packages(exclude=["tests*", "examples*"]),
     include_package_data=True,
     package_data={
