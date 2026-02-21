@@ -4,11 +4,12 @@
     <strong>A powerful, extensible data quality validation framework for Python.</strong>
   </p>
   <p align="center">
+    <img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status">
     <img src="https://img.shields.io/badge/python-3.9+-blue?logo=python&logoColor=white" alt="Python 3.9+">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
     <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Coverage">
     <img src="https://img.shields.io/badge/tests-66%20passed-brightgreen" alt="Tests">
-    <img src="https://img.shields.io/badge/version-1.0.0-purple" alt="Version">
+    <img src="https://img.shields.io/badge/version-v0.1.0-purple" alt="Version">
     <img src="https://img.shields.io/badge/code%20style-black-000000" alt="Code style: black">
   </p>
 </p>
@@ -40,16 +41,18 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 
 ## 🤔 Why ValidateX?
 
-| | **ValidateX** | **Great Expectations** |
+| Feature | **ValidateX** | **Great Expectations** |
 |---|---|---|
 | **Setup** | `pip install` → validate in 5 lines | Multi-step setup with contexts & stores |
 | **API** | Fluent, chainable Python API | Heavy config system |
-| **Quality Score** | Built-in weighted score (0–100) | No native quality score |
-| **Severity** | 🔴🟡🔵 Critical / Warning / Info built-in | No severity classification |
-| **Reports** | Modern dark-theme HTML with animations | Basic data docs |
-| **Column Health** | Per-column summary with mini charts | Not included |
-| **Output** | Clean native Python types | NumPy types leak into output |
-| **CI/CD** | Lightweight, fast, CLI-ready | Heavier footprint |
+| **Severity levels** | ✔ (Critical, Warning, Info) | ❌ |
+| **Quality score** | ✔ (Weighted 0–100) | ❌ |
+| **Auto-suggest expectations**| ✔ | ✔ |
+| **Reports** | Modern dark-theme HTML with minicharts | Basic data docs |
+| **Output Data Types** | Clean native Python types | NumPy types leak into JSON |
+| **PySpark Support** | ✔ | ✔ |
+| **Polars Support** | Soon | ✔ |
+| **CI/CD friendly CLI** | ✔ | ❌ |
 | **Downloads** | JSON / CSV / clipboard built into report | Separate export |
 | **Learning curve** | Minutes | Hours to days |
 
@@ -168,6 +171,46 @@ validatex run --checkpoint checkpoint.yaml
 
 # List available expectations
 validatex list-expectations
+```
+
+---
+
+## 🤖 Automate with CI/CD
+
+ValidateX is designed to be lightweight and CI-friendly. You can easily integrate it into your GitHub Actions, GitLab CI, or Jenkins pipelines to gate deployments on data quality.
+
+**Example: GitHub Actions**
+```yaml
+name: Data Quality Validation
+on: [push, pull_request]
+
+jobs:
+  validate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install ValidateX
+        run: pip install validatex
+        
+      - name: Run Data Validation
+        run: |
+          validatex validate \
+            --data data/production_data.csv \
+            --suite tests/data_quality/suite.yaml \
+            --report dq_report.html
+            
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validatex-report
+          path: dq_report.html
 ```
 
 ---
