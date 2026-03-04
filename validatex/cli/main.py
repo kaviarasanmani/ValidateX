@@ -46,9 +46,7 @@ def cli():
 
 @cli.command()
 @click.option("--data", "-d", required=True, help="Path to data file (CSV, Parquet).")
-@click.option(
-    "--suite", "-s", required=True, help="Path to expectation suite (YAML/JSON)."
-)
+@click.option("--suite", "-s", required=True, help="Path to expectation suite (YAML/JSON).")
 @click.option("--engine", "-e", default="pandas", help="Engine: pandas or spark.")
 @click.option("--report", "-r", default=None, help="Output HTML report path.")
 @click.option("--json-report", "-j", default=None, help="Output JSON report path.")
@@ -75,9 +73,7 @@ def validate(data, suite, engine, report, json_report):
     # Load data
     console.print(f"  📂 Loading data:  [cyan]{data}[/cyan]")
     df = _load_data_file(data, engine)
-    console.print(
-        f"     Shape: [bold]{df.shape[0]}[/bold] rows × [bold]{df.shape[1]}[/bold] columns"
-    )
+    console.print(f"     Shape: [bold]{df.shape[0]}[/bold] rows × [bold]{df.shape[1]}[/bold] columns")
 
     # Run validation
     console.print("  ⏳ Running validations...\n")

@@ -47,7 +47,6 @@ class ExpectTableRowCountToEqual(Expectation):
             details={"expected_count": expected, "actual_count": actual},
         )
 
-
     def _validate_sql(self, sql_source: Any) -> ExpectationResult:
         from sqlalchemy import text
 
@@ -72,9 +71,7 @@ class ExpectTableRowCountToEqual(Expectation):
 class ExpectTableRowCountToBeBetween(Expectation):
     """Expect the row count to be within [min_value, max_value]."""
 
-    expectation_type: str = field(
-        init=False, default="expect_table_row_count_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_table_row_count_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value", 0)
@@ -143,9 +140,7 @@ class ExpectTableRowCountToBeBetween(Expectation):
 class ExpectTableColumnsToMatchOrderedList(Expectation):
     """Expect the columns of a DataFrame to match an exact ordered list."""
 
-    expectation_type: str = field(
-        init=False, default="expect_table_columns_to_match_ordered_list"
-    )
+    expectation_type: str = field(init=False, default="expect_table_columns_to_match_ordered_list")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         expected_columns = self.kwargs.get("column_list", [])
@@ -188,9 +183,7 @@ class ExpectTableColumnsToMatchOrderedList(Expectation):
 class ExpectTableColumnsToMatchSet(Expectation):
     """Expect the set of column names to match (order-independent)."""
 
-    expectation_type: str = field(
-        init=False, default="expect_table_columns_to_match_set"
-    )
+    expectation_type: str = field(init=False, default="expect_table_columns_to_match_set")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         expected_set = set(self.kwargs.get("column_set", []))
@@ -243,9 +236,7 @@ class ExpectTableColumnsToMatchSet(Expectation):
 class ExpectTableColumnCountToEqual(Expectation):
     """Expect the number of columns to match an exact value."""
 
-    expectation_type: str = field(
-        init=False, default="expect_table_column_count_to_equal"
-    )
+    expectation_type: str = field(init=False, default="expect_table_column_count_to_equal")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         expected = self.kwargs.get("value", 0)

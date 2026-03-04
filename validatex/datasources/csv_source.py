@@ -38,12 +38,8 @@ class CSVDataSource(DataSource):
 
     def load_spark(self, spark_session: Any = None) -> Any:
         if spark_session is None:
-            raise ValueError(
-                "A SparkSession is required to load CSV as Spark DataFrame."
-            )
-        reader = spark_session.read.option("header", "true").option(
-            "inferSchema", "true"
-        )
+            raise ValueError("A SparkSession is required to load CSV as Spark DataFrame.")
+        reader = spark_session.read.option("header", "true").option("inferSchema", "true")
         for k, v in self.read_options.items():
             reader = reader.option(k, v)
         return reader.csv(self.filepath)

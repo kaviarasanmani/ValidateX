@@ -16,10 +16,10 @@ import pandas as pd
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
-
 # ---------------------------------------------------------------------------
 # 1. expect_column_values_to_be_null_when (conditional null)
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
@@ -34,9 +34,8 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
         condition_value (any): The value of condition_column that triggers the rule.
         when (str): 'equal' (default) or 'not_equal'
     """
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_null_when"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_null_when")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         cond_col = self.kwargs.get("condition_column")
@@ -69,6 +68,7 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
 # 2. expect_column_values_to_be_not_null_when (conditional not-null)
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeNotNullWhen(Expectation):
@@ -82,9 +82,8 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
         condition_value (any): The trigger value.
         when (str): 'equal' (default) or 'not_equal'
     """
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_not_null_when"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_not_null_when")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         cond_col = self.kwargs.get("condition_column")
@@ -115,6 +114,7 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
 # 3. expect_column_values_to_satisfy (user-defined lambda)
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToSatisfy(Expectation):
@@ -132,17 +132,13 @@ class ExpectColumnValuesToSatisfy(Expectation):
             condition=lambda x: x > 0 and x < 1_000_000
         )
     """
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_satisfy"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_satisfy")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         condition: Optional[Callable] = self.kwargs.get("condition")
         if condition is None:
-            raise ValueError(
-                "You must pass a 'condition' callable to "
-                "ExpectColumnValuesToSatisfy."
-            )
+            raise ValueError("You must pass a 'condition' callable to " "ExpectColumnValuesToSatisfy.")
 
         series = df[self.column].dropna()
         total = len(series)

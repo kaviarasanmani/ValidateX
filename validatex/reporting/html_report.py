@@ -57,14 +57,8 @@ class HTMLReportGenerator:
         status_class = "success" if result.success else "failure"
         status_text = "ALL PASSED" if result.success else "VALIDATION FAILED"
         status_icon = "✅" if result.success else "❌"
-        score_class = (
-            "score-high"
-            if quality_score >= 90
-            else "score-mid" if quality_score >= 70 else "score-low"
-        )
-        run_time_str = (
-            result.run_time.strftime("%Y-%m-%d %H:%M:%S") if result.run_time else "N/A"
-        )
+        score_class = "score-high" if quality_score >= 90 else "score-mid" if quality_score >= 70 else "score-low"
+        run_time_str = result.run_time.strftime("%Y-%m-%d %H:%M:%S") if result.run_time else "N/A"
 
         # Pre-compute JSON data for download
         json_data = json.dumps(result.to_dict(), indent=2, default=str)
@@ -267,32 +261,20 @@ class HTMLReportGenerator:
     def _render_column_health(self, summaries: "List[ColumnHealthSummary]") -> str:
         rows: List[str] = []
         for s in summaries:
-            col_label = (
-                html.escape(s.column)
-                if s.column != "__table__"
-                else "<em>Table-level</em>"
-            )
+            col_label = html.escape(s.column) if s.column != "__table__" else "<em>Table-level</em>"
             health = s.health_score
-            health_cls = (
-                "bar-high" if health >= 90 else "bar-mid" if health >= 70 else "bar-low"
-            )
+            health_cls = "bar-high" if health >= 90 else "bar-mid" if health >= 70 else "bar-low"
             null_str = f"{s.null_percent:.1f}%" if s.null_percent is not None else "—"
             null_bar = ""
             if s.null_percent is not None:
                 np_val = min(s.null_percent, 100)
-                bar_cls = (
-                    "bar-low"
-                    if np_val > 10
-                    else ("bar-mid" if np_val > 2 else "bar-high")
-                )
+                bar_cls = "bar-low" if np_val > 10 else ("bar-mid" if np_val > 2 else "bar-high")
                 null_bar = (
                     f'<div class="mini-bar-bg">'
                     f'<div class="mini-bar-fill {bar_cls}" style="width:{np_val}%"></div>'
                     f"</div>"
                 )
-            unique_str = (
-                f"{s.unique_percent:.1f}%" if s.unique_percent is not None else "—"
-            )
+            unique_str = f"{s.unique_percent:.1f}%" if s.unique_percent is not None else "—"
             unique_bar = ""
             if s.unique_percent is not None:
                 up_val = min(s.unique_percent, 100)
@@ -348,11 +330,7 @@ class HTMLReportGenerator:
             unexpected_html = self._render_unexpected(r)
 
             # Details JSON
-            details_json = (
-                json.dumps(to_native(r.details), indent=2, default=str)
-                if r.details
-                else "{}"
-            )
+            details_json = json.dumps(to_native(r.details), indent=2, default=str) if r.details else "{}"
             detail_id = f"detail-{i}"
 
             row_cls = f"row-{status_lower} row-sev-{sev}"

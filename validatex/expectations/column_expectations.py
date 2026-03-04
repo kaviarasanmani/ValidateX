@@ -47,13 +47,13 @@ class ExpectColumnToExist(Expectation):
         from sqlalchemy import text
 
         engine, query_or_table = sql_source
-        
+
         # Fast query to just get column headers
         query = f"SELECT * FROM ({query_or_table}) AS subquery LIMIT 1"
         with engine.connect() as conn:
             result = conn.execute(text(query))
             exists = str(self.column) in result.keys()
-                
+
         return self._build_result(
             success=exists,
             details={"column_exists": exists},
@@ -102,15 +102,16 @@ class ExpectColumnToNotBeNull(Expectation):
 
     def _validate_sql(self, sql_source: Any) -> ExpectationResult:
         from sqlalchemy import text
+
         engine, query_or_table = sql_source
-        
+
         col = str(self.column)
         query = f"SELECT COUNT(*) as total, SUM(CASE WHEN {col} IS NULL THEN 1 ELSE 0 END) as nulls FROM ({query_or_table}) AS subquery"
         with engine.connect() as conn:
             row = conn.execute(text(query)).fetchone()
             total = int(row.total) if row and row.total else 0
             null_count = int(row.nulls) if row and row.nulls else 0
-            
+
         pct = (null_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(null_count == 0),
@@ -132,9 +133,7 @@ class ExpectColumnToNotBeNull(Expectation):
 class ExpectColumnValuesToBeUnique(Expectation):
     """Expect all values in a column to be unique (no duplicates)."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_unique"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_unique")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         total = len(df)
@@ -154,15 +153,18 @@ class ExpectColumnValuesToBeUnique(Expectation):
 
     def _validate_sql(self, sql_source: Any) -> ExpectationResult:
         from sqlalchemy import text
+
         engine, query_or_table = sql_source
-        
+
         col = str(self.column)
-        query = f"SELECT COUNT({col}) as total, COUNT(DISTINCT {col}) as distinct_count FROM ({query_or_table}) AS subquery"
+        query = (
+            f"SELECT COUNT({col}) as total, COUNT(DISTINCT {col}) as distinct_count FROM ({query_or_table}) AS subquery"
+        )
         with engine.connect() as conn:
             row = conn.execute(text(query)).fetchone()
             total = int(row.total) if row and row.total else 0
             distinct = int(row.distinct_count) if row and row.distinct_count else 0
-            
+
         dup_count = total - distinct
         pct = (dup_count / total * 100) if total > 0 else 0.0
 
@@ -200,9 +202,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
 class ExpectColumnValuesToBeBetween(Expectation):
     """Expect column values to fall within [min_value, max_value]."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
@@ -214,30 +214,14 @@ class ExpectColumnValuesToBeBetween(Expectation):
         total = len(series)
 
         if strict_min:
-            mask_low = (
-                series <= min_val
-                if min_val is not None
-                else pd.Series(False, index=series.index)
-            )
+            mask_low = series <= min_val if min_val is not None else pd.Series(False, index=series.index)
         else:
-            mask_low = (
-                series < min_val
-                if min_val is not None
-                else pd.Series(False, index=series.index)
-            )
+            mask_low = series < min_val if min_val is not None else pd.Series(False, index=series.index)
 
         if strict_max:
-            mask_high = (
-                series >= max_val
-                if max_val is not None
-                else pd.Series(False, index=series.index)
-            )
+            mask_high = series >= max_val if max_val is not None else pd.Series(False, index=series.index)
         else:
-            mask_high = (
-                series > max_val
-                if max_val is not None
-                else pd.Series(False, index=series.index)
-            )
+            mask_high = series > max_val if max_val is not None else pd.Series(False, index=series.index)
 
         unexpected_mask = mask_low | mask_high
         unexpected_count = int(unexpected_mask.sum())
@@ -290,9 +274,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
             unexpected_count = 0
 
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        stats = filtered.select(
-            F.min(str(self.column)), F.max(str(self.column))
-        ).first()
+        stats = filtered.select(F.min(str(self.column)), F.max(str(self.column))).first()
 
         return self._build_result(
             success=(unexpected_count == 0),
@@ -314,9 +296,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
 class ExpectColumnValuesToBeInSet(Expectation):
     """Expect every value in a column to be a member of a given set."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_in_set"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_in_set")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         value_set = set(self.kwargs.get("value_set", []))
@@ -366,9 +346,7 @@ class ExpectColumnValuesToBeInSet(Expectation):
 class ExpectColumnValuesToNotBeInSet(Expectation):
     """Expect no value in a column to be a member of the given set."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_not_be_in_set"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_not_be_in_set")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         forbidden = set(self.kwargs.get("value_set", []))
@@ -417,9 +395,7 @@ class ExpectColumnValuesToNotBeInSet(Expectation):
 class ExpectColumnValuesToMatchRegex(Expectation):
     """Expect column values to match a given regular expression."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_match_regex"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_match_regex")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         regex = self.kwargs.get("regex", ".*")
@@ -469,9 +445,7 @@ class ExpectColumnValuesToMatchRegex(Expectation):
 class ExpectColumnValuesToBeOfType(Expectation):
     """Expect a column's dtype to match the expected type string."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_of_type"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_of_type")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         expected_type = self.kwargs.get("expected_type", "")
@@ -504,9 +478,7 @@ class ExpectColumnValuesToBeOfType(Expectation):
 class ExpectColumnValuesToBeDateutilParseable(Expectation):
     """Expect column values to be parseable as dates."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_dateutil_parseable"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_dateutil_parseable")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna()
@@ -536,9 +508,7 @@ class ExpectColumnValuesToBeDateutilParseable(Expectation):
 class ExpectColumnValueLengthsToBeBetween(Expectation):
     """Expect string lengths in a column to be within [min_value, max_value]."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_value_lengths_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_column_value_lengths_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_len = self.kwargs.get("min_value", 0)
@@ -573,9 +543,7 @@ class ExpectColumnValueLengthsToBeBetween(Expectation):
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
         length_col = F.length(col.cast("string"))
-        unexpected_count = filtered.filter(
-            (length_col < min_len) | (length_col > max_len)
-        ).count()
+        unexpected_count = filtered.filter((length_col < min_len) | (length_col > max_len)).count()
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
@@ -695,9 +663,7 @@ class ExpectColumnMinToBeBetween(Expectation):
 class ExpectColumnMeanToBeBetween(Expectation):
     """Expect the mean value of a numeric column to fall within bounds."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_mean_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_column_mean_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
@@ -750,9 +716,7 @@ class ExpectColumnMeanToBeBetween(Expectation):
 class ExpectColumnStdevToBeBetween(Expectation):
     """Expect the standard deviation of a column to fall within bounds."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_stdev_to_be_between"
-    )
+    expectation_type: str = field(init=False, default="expect_column_stdev_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
@@ -786,9 +750,7 @@ class ExpectColumnStdevToBeBetween(Expectation):
 class ExpectColumnDistinctValuesToBeInSet(Expectation):
     """Expect all distinct values in a column to be in the given set."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_distinct_values_to_be_in_set"
-    )
+    expectation_type: str = field(init=False, default="expect_column_distinct_values_to_be_in_set")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         value_set = set(self.kwargs.get("value_set", []))
@@ -801,9 +763,7 @@ class ExpectColumnDistinctValuesToBeInSet(Expectation):
             observed_value={"distinct_values": list(actual_values)[:20]},
             element_count=total_distinct,
             unexpected_count=len(unexpected),
-            unexpected_percent=(
-                (len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0
-            ),
+            unexpected_percent=((len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0),
             unexpected_values=list(unexpected)[:20],
             details={"value_set": list(value_set)},
         )

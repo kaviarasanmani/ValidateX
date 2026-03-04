@@ -136,7 +136,4 @@ class ExpectationSuite:
         return iter(self.expectations)
 
     def __repr__(self) -> str:
-        return (
-            f"ExpectationSuite(name={self.name!r}, "
-            f"expectations={len(self.expectations)})"
-        )
+        return f"ExpectationSuite(name={self.name!r}, " f"expectations={len(self.expectations)})"

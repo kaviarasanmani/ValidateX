@@ -14,18 +14,17 @@ import pandas as pd
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
-
 # ---------------------------------------------------------------------------
 # 1. expect_column_values_to_not_match_regex
 # ---------------------------------------------------------------------------
+
 
 @register_expectation
 @dataclass
 class ExpectColumnValuesToNotMatchRegex(Expectation):
     """Expect column values to NOT match a given regex."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_not_match_regex"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_not_match_regex")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         regex = self.kwargs.get("regex", "")
@@ -33,7 +32,7 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
         total = len(series)
 
         pattern = re.compile(regex)
-        
+
         # We want values that DO NOT match. So values that MATCH are "unexpected"
         unexpected_mask = series.apply(lambda x: bool(pattern.search(x)))
         unexpected_count = int(unexpected_mask.sum())
@@ -50,17 +49,18 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         regex = self.kwargs.get("regex", "")
         col = F.col(str(self.column))
-        
+
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
-        
+
         # Matches regex natively in Spark
         unexpected_df = filtered.filter(col.rlike(regex))
         unexpected_count = unexpected_df.count()
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        
+
         unexpected_vals = [row[0] for row in unexpected_df.select(self.column).limit(20).collect()]
 
         return self._build_result(
@@ -77,13 +77,13 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
 # 2. expect_column_values_to_be_valid_email
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeValidEmail(Expectation):
     """Expect column values to be valid email addresses."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_valid_email"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_valid_email")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
@@ -91,7 +91,7 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
 
         # Basic functional email regex
         pattern = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$")
-        
+
         unexpected_mask = ~series.apply(lambda x: bool(pattern.match(x)))
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
@@ -106,15 +106,16 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
-        
+
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
-        
+
         # Equivalent regex logic for PySpark
         pattern = r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$"
         unexpected_df = filtered.filter(~col.rlike(pattern))
-        
+
         unexpected_count = unexpected_df.count()
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
         unexpected_vals = [row[0] for row in unexpected_df.select(self.column).limit(20).collect()]
@@ -132,13 +133,13 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
 # 3. expect_column_values_to_be_json_parseable
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeJsonParseable(Expectation):
     """Expect column values to be valid, parseable JSON strings."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_json_parseable"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_json_parseable")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
@@ -167,7 +168,7 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
         from pyspark.sql.types import StringType
-        
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -177,6 +178,7 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
         def check_json(val):
             try:
                 import json
+
                 json.loads(val)
                 return True
             except Exception:  # noqa: BLE001
@@ -201,21 +203,21 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
 # 4. expect_column_sum_to_be_between
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnSumToBeBetween(Expectation):
     """Expect the sum of a column to be between a min and max value."""
-    expectation_type: str = field(
-        init=False, default="expect_column_sum_to_be_between"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_sum_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        
+
         series = df[self.column].dropna()
         actual_sum = float(series.sum())
-        
+
         success = True
         if min_val is not None:
             success = success and (actual_sum >= min_val)
@@ -231,19 +233,19 @@ class ExpectColumnSumToBeBetween(Expectation):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
-        
+
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        
+
         filtered = df.filter(F.col(str(self.column)).isNotNull())
         total_rows = filtered.count()
-        
+
         if total_rows == 0:
             return self._build_result(success=True, element_count=0)
 
         row = filtered.select(F.sum(str(self.column)).alias("total_sum")).collect()[0]
         actual_sum = float(row["total_sum"]) if row["total_sum"] is not None else 0.0
-        
+
         success = True
         if min_val is not None:
             success = success and (actual_sum >= min_val)
@@ -262,21 +264,21 @@ class ExpectColumnSumToBeBetween(Expectation):
 # 5. expect_column_median_to_be_between
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnMedianToBeBetween(Expectation):
     """Expect the median of a column to be between a min and max value."""
-    expectation_type: str = field(
-        init=False, default="expect_column_median_to_be_between"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_median_to_be_between")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        
+
         series = df[self.column].dropna()
         actual_median = float(series.median())
-        
+
         success = True
         if min_val is not None:
             success = success and (actual_median >= min_val)
@@ -292,20 +294,20 @@ class ExpectColumnMedianToBeBetween(Expectation):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
-        
+
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        
+
         filtered = df.filter(F.col(str(self.column)).isNotNull())
         total_rows = filtered.count()
-        
+
         if total_rows == 0:
             return self._build_result(success=True, element_count=0)
 
         # Approximate median using approxQuantile in PySpark
         actual_median = filtered.approxQuantile(str(self.column), [0.5], 0.001)[0]
         actual_median = float(actual_median)
-        
+
         success = True
         if min_val is not None:
             success = success and (actual_median >= min_val)
@@ -324,22 +326,22 @@ class ExpectColumnMedianToBeBetween(Expectation):
 # 6. expect_column_value_lengths_to_equal
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValueLengthsToEqual(Expectation):
     """Expect string column value lengths to exactly equal a specific length."""
-    expectation_type: str = field(
-        init=False, default="expect_column_value_lengths_to_equal"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_value_lengths_to_equal")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         value = self.kwargs.get("value")
         if value is None:
             raise ValueError("Missing 'value' argument")
-            
+
         series = df[self.column].dropna().astype(str)
         total = len(series)
-        
+
         lengths = series.apply(len)
         unexpected_mask = lengths != value
         unexpected_count = int(unexpected_mask.sum())
@@ -356,18 +358,18 @@ class ExpectColumnValueLengthsToEqual(Expectation):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
-        
+
         value = self.kwargs.get("value")
         if value is None:
             raise ValueError("Missing 'value' argument")
-            
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
-        
+
         # Length check
         unexpected_df = filtered.filter(F.length(col.cast("string")) != value)
-        
+
         unexpected_count = unexpected_df.count()
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
         unexpected_vals = [row[0] for row in unexpected_df.select(self.column).limit(20).collect()]

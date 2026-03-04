@@ -40,9 +40,7 @@ def get_expectation_class(name: str) -> Type["Expectation"]:
     """Look up an expectation class by its registered type name."""
     if name not in _EXPECTATION_REGISTRY:
         available = ", ".join(sorted(_EXPECTATION_REGISTRY.keys()))
-        raise ValueError(
-            f"Unknown expectation type '{name}'. " f"Available types: {available}"
-        )
+        raise ValueError(f"Unknown expectation type '{name}'. " f"Available types: {available}")
     return _EXPECTATION_REGISTRY[name]
 
 
@@ -139,15 +137,11 @@ class Expectation(ABC):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         """Validate using PySpark engine.  Optional override."""
-        raise NotImplementedError(
-            f"{self.expectation_type} does not support PySpark yet."
-        )
+        raise NotImplementedError(f"{self.expectation_type} does not support PySpark yet.")
 
     def _validate_sql(self, engine: Any) -> ExpectationResult:
         """Validate using SQLAlchemy engine. Optional override."""
-        raise NotImplementedError(
-            f"{self.expectation_type} does not support SQL yet."
-        )
+        raise NotImplementedError(f"{self.expectation_type} does not support SQL yet.")
 
     # -- helpers -----------------------------------------------------------
 

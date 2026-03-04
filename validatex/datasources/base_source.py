@@ -24,15 +24,11 @@ class DataSource(ABC):
 
     def load_spark(self, spark_session: Any = None) -> Any:
         """Load data as a PySpark DataFrame. Override in subclass."""
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not support PySpark loading."
-        )
+        raise NotImplementedError(f"{self.__class__.__name__} does not support PySpark loading.")
 
     def load_sql(self) -> Any:
         """Load data engine as a SQLAlchemy engine. Override in subclass."""
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not support SQL loading."
-        )
+        raise NotImplementedError(f"{self.__class__.__name__} does not support SQL loading.")
 
     def load(self, engine: str = "pandas", spark_session: Any = None) -> Any:
         """Load data using the specified engine."""

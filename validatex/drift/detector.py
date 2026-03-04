@@ -52,7 +52,7 @@ class DriftDetector:
         for col in shared:
             type_base = str(df_base[col].dtype)
             type_curr = str(df_current[col].dtype)
-            
+
             if type_base != type_curr:
                 # Optionally, we might just flag differences that cross numeric/object bounds
                 type_changes[col] = {"baseline": type_base, "current": type_curr}
@@ -95,18 +95,16 @@ class DriftDetector:
         eps = 1e-6
         expected_pct = np.clip(expected_pct, eps, 1.0)
         actual_pct = np.clip(actual_pct, eps, 1.0)
-        
+
         # PSI = sum((Actual % - Expected %) * ln(Actual % / Expected %))
         psi = np.sum((actual_pct - expected_pct) * np.log(actual_pct / expected_pct))
         return float(psi)
 
-    def _calculate_numeric_psi(
-        self, base: pd.Series, current: pd.Series
-    ) -> tuple[float, Dict]:
+    def _calculate_numeric_psi(self, base: pd.Series, current: pd.Series) -> tuple[float, Dict]:
         """Calculate PSI for continuous numeric variables."""
         # Create bins based on the BASELINE distribution quantiles
         bins = pd.qcut(base, q=self.bins, retbins=True, duplicates="drop")[1]
-        
+
         # Extend lowest and highest bin edges to capture outliers in current data
         bins[0] = -np.inf
         bins[-1] = np.inf
@@ -117,23 +115,21 @@ class DriftDetector:
 
         base_pct = base_counts / max(len(base), 1)
         curr_pct = curr_counts / max(len(current), 1)
-        
+
         psi = self._calculate_psi_array(base_pct, curr_pct)
         return psi, {"baseline_bins": len(bins) - 1}
 
-    def _calculate_categorical_psi(
-        self, base: pd.Series, current: pd.Series
-    ) -> tuple[float, Dict]:
+    def _calculate_categorical_psi(self, base: pd.Series, current: pd.Series) -> tuple[float, Dict]:
         """Calculate PSI for categorical variables by treating distinct values as buckets."""
         # Get counts
         base_counts = base.value_counts(normalize=True)
         curr_counts = current.value_counts(normalize=True)
-        
+
         # Align indexes to ensure buckets match exactly
         all_categories = list(set(base_counts.index).union(set(curr_counts.index)))
-        
+
         base_pct = np.array([base_counts.get(c, 0.0) for c in all_categories])
         curr_pct = np.array([curr_counts.get(c, 0.0) for c in all_categories])
-        
+
         psi = self._calculate_psi_array(base_pct, curr_pct)
         return psi, {"cardinality_baseline": len(base.unique()), "cardinality_current": len(current.unique())}

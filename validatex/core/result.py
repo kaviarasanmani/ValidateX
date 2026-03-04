@@ -131,12 +131,8 @@ class ExpectationResult:
         """Sanitize all numeric values to native Python types."""
         self.observed_value = to_native(self.observed_value)
         self.element_count = int(self.element_count) if self.element_count else 0
-        self.unexpected_count = (
-            int(self.unexpected_count) if self.unexpected_count else 0
-        )
-        self.unexpected_percent = (
-            float(self.unexpected_percent) if self.unexpected_percent else 0.0
-        )
+        self.unexpected_count = int(self.unexpected_count) if self.unexpected_count else 0
+        self.unexpected_percent = float(self.unexpected_percent) if self.unexpected_percent else 0.0
         self.unexpected_values = [to_native(v) for v in self.unexpected_values]
         self.details = to_native(self.details) or {}
 
@@ -269,15 +265,9 @@ class ColumnHealthSummary:
             "errors": self.errors,
             "health_score": self.health_score,
             "null_count": self.null_count,
-            "null_percent": (
-                round(self.null_percent, 2) if self.null_percent is not None else None
-            ),
+            "null_percent": (round(self.null_percent, 2) if self.null_percent is not None else None),
             "unique_count": self.unique_count,
-            "unique_percent": (
-                round(self.unique_percent, 2)
-                if self.unique_percent is not None
-                else None
-            ),
+            "unique_percent": (round(self.unique_percent, 2) if self.unique_percent is not None else None),
         }
 
 
@@ -479,16 +469,11 @@ class ValidationResult:
                 if not r.success:
                     col_str = f" (column: {r.column})" if r.column else ""
                     sev = r.severity_icon
-                    lines.append(
-                        f"  {r.status_icon} {sev} {r.expectation_type}{col_str}"
-                    )
+                    lines.append(f"  {r.status_icon} {sev} {r.expectation_type}{col_str}")
                     if r.exception_info:
                         lines.append(f"      Error: {r.exception_info}")
                     elif r.unexpected_count:
-                        lines.append(
-                            f"      Unexpected: {r.unexpected_count} "
-                            f"({r.unexpected_percent:.2f}%)"
-                        )
+                        lines.append(f"      Unexpected: {r.unexpected_count} " f"({r.unexpected_percent:.2f}%)")
             lines.append(f"{'='*60}")
         return "\n".join(lines)
 

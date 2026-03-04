@@ -17,15 +17,9 @@ from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
 # Pre-compiled patterns
-_URL_PATTERN = re.compile(
-    r"^(https?|ftp)://[^\s/$.?#].[^\s]*$", re.IGNORECASE
-)
-_IP4_PATTERN = re.compile(
-    r"^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$"
-)
-_IP6_PATTERN = re.compile(
-    r"^([0-9a-f]{1,4}:){7}[0-9a-f]{1,4}$", re.IGNORECASE
-)
+_URL_PATTERN = re.compile(r"^(https?|ftp)://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+_IP4_PATTERN = re.compile(r"^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$")
+_IP6_PATTERN = re.compile(r"^([0-9a-f]{1,4}:){7}[0-9a-f]{1,4}$", re.IGNORECASE)
 _UUID_PATTERN = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -50,24 +44,29 @@ def _build_unexpected(series, unexpected_mask):
 # 1. expect_column_values_to_be_valid_url
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeValidUrl(Expectation):
     """Expect column values to be valid HTTP/HTTPS/FTP URLs."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_valid_url"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_valid_url")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
         unexpected_mask = ~_vectorized_match(series, _URL_PATTERN)
         total, cnt, pct, vals = _build_unexpected(series, unexpected_mask)
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -76,36 +75,43 @@ class ExpectColumnValuesToBeValidUrl(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
 
 # ---------------------------------------------------------------------------
 # 2. expect_column_values_to_be_valid_ip_address
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeValidIpAddress(Expectation):
     """Expect column values to be valid IPv4 or IPv6 addresses."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_valid_ip_address"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_valid_ip_address")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
-        matches = series.apply(
-            lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x))
-        )
+        matches = series.apply(lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x)))
         unexpected_mask = ~matches
         total, cnt, pct, vals = _build_unexpected(series, unexpected_mask)
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -115,33 +121,42 @@ class ExpectColumnValuesToBeValidIpAddress(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
 
 # ---------------------------------------------------------------------------
 # 3. expect_column_values_to_be_valid_uuid
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeValidUuid(Expectation):
     """Expect column values to be valid UUIDs (any version)."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_valid_uuid"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_valid_uuid")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
         unexpected_mask = ~_vectorized_match(series, _UUID_PATTERN)
         total, cnt, pct, vals = _build_unexpected(series, unexpected_mask)
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -150,33 +165,42 @@ class ExpectColumnValuesToBeValidUuid(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
 
 # ---------------------------------------------------------------------------
 # 4. expect_column_values_to_be_valid_iso_date
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeValidIsoDate(Expectation):
     """Expect column values to be valid ISO 8601 date strings (YYYY-MM-DD)."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_valid_iso_date"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_valid_iso_date")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
         unexpected_mask = ~_vectorized_match(series, _ISO_DATE_PATTERN)
         total, cnt, pct, vals = _build_unexpected(series, unexpected_mask)
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -185,33 +209,42 @@ class ExpectColumnValuesToBeValidIsoDate(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
 
 # ---------------------------------------------------------------------------
 # 5. expect_column_values_to_be_valid_phone_number
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeValidPhoneNumber(Expectation):
     """Expect column values to be valid international phone numbers."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_valid_phone_number"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_valid_phone_number")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
         unexpected_mask = ~_vectorized_match(series, _PHONE_PATTERN)
         total, cnt, pct, vals = _build_unexpected(series, unexpected_mask)
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -220,22 +253,26 @@ class ExpectColumnValuesToBeValidPhoneNumber(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
 
 # ---------------------------------------------------------------------------
 # 6. expect_column_values_to_be_all_uppercase
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeAllUppercase(Expectation):
     """Expect all string values in a column to be fully uppercased."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_all_uppercase"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_all_uppercase")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
@@ -243,12 +280,17 @@ class ExpectColumnValuesToBeAllUppercase(Expectation):
         unexpected_mask = series != series.str.upper()
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        return self._build_result(success=(unexpected_count == 0), element_count=total,
-                                  unexpected_count=unexpected_count, unexpected_percent=pct,
-                                  unexpected_values=series[unexpected_mask].tolist()[:20])
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series[unexpected_mask].tolist()[:20],
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -256,22 +298,26 @@ class ExpectColumnValuesToBeAllUppercase(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
 
 
 # ---------------------------------------------------------------------------
 # 7. expect_column_values_to_be_all_lowercase
 # ---------------------------------------------------------------------------
 
+
 @register_expectation
 @dataclass
 class ExpectColumnValuesToBeAllLowercase(Expectation):
     """Expect all string values in a column to be fully lowercased."""
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_all_lowercase"
-    )
+
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_all_lowercase")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
@@ -279,12 +325,17 @@ class ExpectColumnValuesToBeAllLowercase(Expectation):
         unexpected_mask = series != series.str.lower()
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        return self._build_result(success=(unexpected_count == 0), element_count=total,
-                                  unexpected_count=unexpected_count, unexpected_percent=pct,
-                                  unexpected_values=series[unexpected_mask].tolist()[:20])
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series[unexpected_mask].tolist()[:20],
+        )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
+
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
@@ -292,6 +343,10 @@ class ExpectColumnValuesToBeAllLowercase(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
-        return self._build_result(success=(cnt == 0), element_count=total,
-                                  unexpected_count=cnt, unexpected_percent=pct,
-                                  unexpected_values=vals)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )

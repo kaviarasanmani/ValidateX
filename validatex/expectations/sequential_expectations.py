@@ -25,30 +25,28 @@ from validatex.core.result import ExpectationResult
 class ExpectColumnValuesToBeIncreasing(Expectation):
     """Expect column values (often timestamps or IDs) to be monotonically increasing."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_increasing"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_increasing")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         strictly = self.kwargs.get("strictly", False)
-        
+
         series = df[self.column].dropna()
         total = len(series)
-        
+
         if total < 2:
             return self._build_result(success=True, element_count=total)
 
         # Calculate differences between consecutive rows to find out-of-order data
         diffs = series.diff().iloc[1:]
-        
+
         if strictly:
             unexpected_mask = diffs <= 0
         else:
             unexpected_mask = diffs < 0
-            
+
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        
+
         # Get the row indices where the drop occurred
         violation_indices = unexpected_mask[unexpected_mask].index
         unexpected_values = series.loc[violation_indices].tolist()[:10]
@@ -63,6 +61,7 @@ class ExpectColumnValuesToBeIncreasing(Expectation):
             details={"strictly_increasing": strictly},
         )
 
+
 # ---------------------------------------------------------------------------
 # 2. expect_column_values_to_be_decreasing
 # ---------------------------------------------------------------------------
@@ -73,29 +72,27 @@ class ExpectColumnValuesToBeIncreasing(Expectation):
 class ExpectColumnValuesToBeDecreasing(Expectation):
     """Expect column values to be monotonically decreasing."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_values_to_be_decreasing"
-    )
+    expectation_type: str = field(init=False, default="expect_column_values_to_be_decreasing")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         strictly = self.kwargs.get("strictly", False)
-        
+
         series = df[self.column].dropna()
         total = len(series)
-        
+
         if total < 2:
             return self._build_result(success=True, element_count=total)
 
         diffs = series.diff().iloc[1:]
-        
+
         if strictly:
             unexpected_mask = diffs >= 0
         else:
             unexpected_mask = diffs > 0
-            
+
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
-        
+
         violation_indices = unexpected_mask[unexpected_mask].index
         unexpected_values = series.loc[violation_indices].tolist()[:10]
 

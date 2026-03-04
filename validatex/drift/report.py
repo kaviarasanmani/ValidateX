@@ -37,9 +37,7 @@ class DriftReport:
                 "removed_columns": self.schema_removed_columns,
                 "type_changes": self.schema_type_changes,
             },
-            "columns": {
-                col: asdict(result) for col, result in self.column_drifts.items()
-            },
+            "columns": {col: asdict(result) for col, result in self.column_drifts.items()},
         }
 
     def to_json(self, indent: int = 2) -> str:
@@ -67,7 +65,7 @@ class DriftReport:
         lines.append("\n[2] Feature Drift (PSI):")
         drifted_count = sum(1 for res in self.column_drifts.values() if res.is_drifted)
         lines.append(f"  {drifted_count} out of {len(self.column_drifts)} shared features drifted.")
-        
+
         for col, res in self.column_drifts.items():
             status = "🔴 DRIFTED" if res.is_drifted else "🟢 STABLE"
             lines.append(f"  {status} | {col.ljust(20)} | PSI: {res.psi_score:.4f} ({res.feature_type})")

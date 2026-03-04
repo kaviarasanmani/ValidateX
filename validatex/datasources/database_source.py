@@ -50,7 +50,7 @@ class DatabaseDataSource(DataSource):
 
     def load_sql(self) -> Any:
         from sqlalchemy import create_engine
-        
+
         engine = create_engine(self.connection_string)
         # We return a tuple of (engine, query_or_table) so the SQL expectations can use it
         return engine, self.query

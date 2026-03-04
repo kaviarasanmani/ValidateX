@@ -48,15 +48,9 @@ class ColumnProfile:
             "unique_percent": round(self.unique_percent, 2),
             "min_value": self._safe(self.min_value),
             "max_value": self._safe(self.max_value),
-            "mean_value": (
-                round(self.mean_value, 4) if self.mean_value is not None else None
-            ),
-            "std_value": (
-                round(self.std_value, 4) if self.std_value is not None else None
-            ),
-            "median_value": (
-                round(self.median_value, 4) if self.median_value is not None else None
-            ),
+            "mean_value": (round(self.mean_value, 4) if self.mean_value is not None else None),
+            "std_value": (round(self.std_value, 4) if self.std_value is not None else None),
+            "median_value": (round(self.median_value, 4) if self.median_value is not None else None),
             "min_length": self.min_length,
             "max_length": self.max_length,
             "top_values": self.top_values[:10],
@@ -101,9 +95,7 @@ class DataProfile:
             lines.append(f"\n  📊 Column: {cp.name}")
             lines.append(f"     Type       : {cp.dtype}")
             lines.append(f"     Nulls      : {cp.null_count} ({cp.null_percent:.1f}%)")
-            lines.append(
-                f"     Unique     : {cp.unique_count} ({cp.unique_percent:.1f}%)"
-            )
+            lines.append(f"     Unique     : {cp.unique_count} ({cp.unique_percent:.1f}%)")
             if cp.min_value is not None:
                 lines.append(f"     Min        : {cp.min_value}")
                 lines.append(f"     Max        : {cp.max_value}")
@@ -114,9 +106,7 @@ class DataProfile:
             if cp.min_length is not None:
                 lines.append(f"     Str Len    : {cp.min_length} – {cp.max_length}")
             if cp.top_values:
-                top_str = ", ".join(
-                    f"{v['value']}({v['count']})" for v in cp.top_values[:5]
-                )
+                top_str = ", ".join(f"{v['value']}({v['count']})" for v in cp.top_values[:5])
                 lines.append(f"     Top Values : {top_str}")
         lines.append(f"\n{'='*60}")
         return "\n".join(lines)
@@ -202,11 +192,7 @@ class DataProfiler:
 
             # Numeric range
             if cp.mean_value is not None and cp.min_value is not None:
-                margin = (
-                    abs(cp.max_value - cp.min_value) * 0.1
-                    if cp.max_value != cp.min_value
-                    else 1
-                )
+                margin = abs(cp.max_value - cp.min_value) * 0.1 if cp.max_value != cp.min_value else 1
                 suite.add(
                     "expect_column_values_to_be_between",
                     column=cp.name,
@@ -216,11 +202,7 @@ class DataProfiler:
 
             # Categorical (string with few distinct values)
             dtype_lower = cp.dtype.lower()
-            is_string = (
-                dtype_lower.startswith("object")
-                or dtype_lower in ("str", "string")
-                or "string" in dtype_lower
-            )
+            is_string = dtype_lower.startswith("object") or dtype_lower in ("str", "string") or "string" in dtype_lower
             if is_string and 0 < cp.unique_count <= 20 and cp.total_count > 0:
                 values = [v["value"] for v in cp.top_values if v["value"] is not None]
                 if values:
@@ -272,11 +254,7 @@ class DataProfiler:
 
         # String stats — handle 'object', 'str', 'string', 'StringDtype' etc.
         dtype_str = str(series.dtype).lower()
-        is_string_col = (
-            dtype_str == "object"
-            or dtype_str in ("str", "string")
-            or "string" in dtype_str
-        )
+        is_string_col = dtype_str == "object" or dtype_str in ("str", "string") or "string" in dtype_str
         if is_string_col:
             str_series = non_null.astype(str)
             if len(str_series) > 0:
@@ -289,9 +267,7 @@ class DataProfiler:
         # Top values
         if len(non_null) > 0:
             value_counts = non_null.value_counts().head(10)
-            cp.top_values = [
-                {"value": str(v), "count": int(c)} for v, c in value_counts.items()
-            ]
+            cp.top_values = [{"value": str(v), "count": int(c)} for v, c in value_counts.items()]
 
         # Sample values
         if len(non_null) > 0:

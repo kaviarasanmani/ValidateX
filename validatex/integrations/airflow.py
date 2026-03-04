@@ -9,8 +9,7 @@ try:
     from airflow.utils.context import Context
 except ImportError:
     raise ImportError(
-        "To use the ValidateXOperator, you must install apache-airflow:\n"
-        "    pip install apache-airflow"
+        "To use the ValidateXOperator, you must install apache-airflow:\n" "    pip install apache-airflow"
     )
 
 import pandas as pd
@@ -22,7 +21,7 @@ from validatex.core.validator import validate
 class ValidateXOperator(BaseOperator):
     """
     Airflow Operator to run ValidateX data quality checks in a DAG.
-    
+
     If the data quality score falls below the specified `min_score`,
     the Airflow task will fail, preventing downstream tasks from running
     and alerting the data engineering team.
@@ -60,9 +59,9 @@ class ValidateXOperator(BaseOperator):
 
     def execute(self, context: Context) -> Dict[str, Any]:
         self.log.info(f"Running ValidateX Quality Checks. Expecting Min Score: {self.min_score}")
-        
+
         self.log.info(f"Loading data from {self.data_path} ({self.data_format})")
-        
+
         # Load the data for validation
         if self.data_format.lower() == "csv":
             df = pd.read_csv(self.data_path)
@@ -72,11 +71,11 @@ class ValidateXOperator(BaseOperator):
             raise ValueError(f"Unsupported data_format: {self.data_format}. Use 'csv' or 'parquet'.")
 
         self.log.info(f"Validating {len(df)} rows...")
-        
+
         # Run ValidateX
         result = validate(df, self.suite)
         score = result.score
-        
+
         self.log.info(f"\n{result.summary()}")
         self.log.info(f"ValidateX Final Score: {score:.2f} / 100.00")
 
@@ -95,11 +94,11 @@ class ValidateXOperator(BaseOperator):
             )
 
         self.log.info("Data Quality Gate Passed. Task successful.")
-        
+
         # Return a serializable dict into XComs so downstream tasks can access the metadata
         return {
             "validatex_score": score,
             "passed_expectations": result.passed_count,
             "failed_expectations": result.failed_count,
-            "report_path": self.report_path
+            "report_path": self.report_path,
         }

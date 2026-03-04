@@ -15,7 +15,6 @@ import pandas as pd
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
 
-
 # ---------------------------------------------------------------------------
 # 1. expect_column_quantile_values_to_be_between
 # ---------------------------------------------------------------------------
@@ -36,9 +35,7 @@ class ExpectColumnQuantileValuesToBeBetween(Expectation):
         )
     """
 
-    expectation_type: str = field(
-        init=False, default='expect_column_quantile_values_to_be_between'
-    )
+    expectation_type: str = field(init=False, default='expect_column_quantile_values_to_be_between')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         quantiles: List[float] = self.kwargs.get('quantiles', [])
@@ -89,9 +86,7 @@ class ExpectColumnQuantileValuesToBeBetween(Expectation):
 class ExpectColumnNullPercentageToBeLessThan(Expectation):
     """Expect null percentage in a column to be below a threshold (0-100)."""
 
-    expectation_type: str = field(
-        init=False, default='expect_column_null_percentage_to_be_less_than'
-    )
+    expectation_type: str = field(init=False, default='expect_column_null_percentage_to_be_less_than')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         threshold: float = float(self.kwargs.get('threshold', 0))
@@ -142,9 +137,7 @@ class ExpectColumnCorrelationToBeBetween(Expectation):
         max_value (float): Maximum acceptable correlation (-1 to 1).
     """
 
-    expectation_type: str = field(
-        init=False, default='expect_column_correlation_to_be_between'
-    )
+    expectation_type: str = field(init=False, default='expect_column_correlation_to_be_between')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         other_col = self.kwargs.get('other_column')
@@ -191,9 +184,7 @@ class ExpectColumnCorrelationToBeBetween(Expectation):
 class ExpectColumnValuesToHaveNoWhitespace(Expectation):
     """Expect string values to have no leading or trailing whitespace."""
 
-    expectation_type: str = field(
-        init=False, default='expect_column_values_to_have_no_whitespace'
-    )
+    expectation_type: str = field(init=False, default='expect_column_values_to_have_no_whitespace')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
@@ -241,9 +232,7 @@ class ExpectColumnValuesToHaveNoWhitespace(Expectation):
 class ExpectColumnValuesToBePositive(Expectation):
     """Expect all non-null numeric values in the column to be strictly positive (> 0)."""
 
-    expectation_type: str = field(
-        init=False, default='expect_column_values_to_be_positive'
-    )
+    expectation_type: str = field(init=False, default='expect_column_values_to_be_positive')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         allow_zero = self.kwargs.get('allow_zero', False)
@@ -296,9 +285,7 @@ class ExpectColumnValuesToBePositive(Expectation):
 class ExpectColumnValuesToBeNegative(Expectation):
     """Expect all non-null numeric values in the column to be strictly negative (< 0)."""
 
-    expectation_type: str = field(
-        init=False, default='expect_column_values_to_be_negative'
-    )
+    expectation_type: str = field(init=False, default='expect_column_values_to_be_negative')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         allow_zero = self.kwargs.get('allow_zero', False)
@@ -357,9 +344,7 @@ class ExpectColumnValuesToBeInRangeOfStdDevs(Expectation):
         n_std_devs (float): Max number of standard deviations from mean (default 3.0).
     """
 
-    expectation_type: str = field(
-        init=False, default='expect_column_values_to_be_in_range_of_std_devs'
-    )
+    expectation_type: str = field(init=False, default='expect_column_values_to_be_in_range_of_std_devs')
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         n_std = float(self.kwargs.get('n_std_devs', 3.0))

@@ -100,9 +100,7 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
 class ExpectColumnPairValuesToBeEqual(Expectation):
     """Expect values in two columns to be equal row-wise."""
 
-    expectation_type: str = field(
-        init=False, default="expect_column_pair_values_to_be_equal"
-    )
+    expectation_type: str = field(init=False, default="expect_column_pair_values_to_be_equal")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         col_a = self.kwargs.get("column_a", self.column)
@@ -195,9 +193,7 @@ class ExpectMulticolumnSumToEqual(Expectation):
 class ExpectCompoundColumnsToBeUnique(Expectation):
     """Expect the combination of values across multiple columns to be unique."""
 
-    expectation_type: str = field(
-        init=False, default="expect_compound_columns_to_be_unique"
-    )
+    expectation_type: str = field(init=False, default="expect_compound_columns_to_be_unique")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         columns = self.kwargs.get("column_list", [])
