@@ -179,7 +179,7 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
                 import json
                 json.loads(val)
                 return True
-            except:
+            except Exception:  # noqa: BLE001
                 return False
 
         # Apply UDF

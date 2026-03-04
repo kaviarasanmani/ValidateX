@@ -97,7 +97,6 @@ class ExpectColumnToNotBeNull(Expectation):
             element_count=total,
             unexpected_count=null_count,
             unexpected_percent=pct,
-            unexpected_percent=pct,
             details={"null_count": null_count, "total_count": total},
         )
 
@@ -178,8 +177,6 @@ class ExpectColumnValuesToBeUnique(Expectation):
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
-        pass
-
         total = df.count()
         distinct_count = df.select(self.column).distinct().count()
         dup_count = total - distinct_count

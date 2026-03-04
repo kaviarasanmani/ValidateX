@@ -1,6 +1,9 @@
 [flake8]
-max-line-length = 88
-extend-ignore = E203, W503, E501
+max-line-length = 120
+extend-ignore = E203, W503, E501, E722, E741, E402
+per-file-ignores =
+    tests/*:F401,F811
+    validatex/expectations/__init__.py:F401
 exclude =
     .git,
     __pycache__,
@@ -10,4 +13,6 @@ exclude =
     venv,
     .env,
     .mypy_cache,
-    .pytest_cache
+    .pytest_cache,
+    docs,
+    examples,

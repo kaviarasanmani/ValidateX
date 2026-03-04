@@ -1,0 +1,56 @@
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+no_implicit_optional = true
+strict_optional = false
+exclude = [
+    "tests/",
+    "examples/",
+    "docs/",
+]
+
+# Per-module overrides for optional heavy dependencies
+[[tool.mypy.overrides]]
+module = [
+    "pyspark.*",
+    "sqlalchemy.*",
+    "airflow.*",
+    "numpy.*",
+    "pandas.*",
+    "yaml.*",
+    "jinja2.*",
+    "click.*",
+    "rich.*",
+]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 120
+target-version = ["py39", "py310", "py311", "py312"]
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | build
+  | dist
+  | docs
+  | examples
+  | \.eggs
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]

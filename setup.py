@@ -21,6 +21,7 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "pandas>=1.3.0",
+        "numpy>=1.21.0",
         "pyyaml>=6.0",
         "jinja2>=3.0",
         "click>=8.0",
