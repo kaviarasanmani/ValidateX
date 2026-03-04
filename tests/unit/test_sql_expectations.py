@@ -36,12 +36,12 @@ def sqlite_engine():
 
 
 def test_sql_row_count(sqlite_engine):
-    exp = ExpectTableRowCountToEqual(value=4)
+    exp = ExpectTableRowCountToEqual(kwargs={"value": 4})
     res = exp._validate_sql(sqlite_engine)
     assert res.success is True
     assert res.observed_value == 4
 
-    exp_between = ExpectTableRowCountToBeBetween(min_value=2, max_value=5)
+    exp_between = ExpectTableRowCountToBeBetween(kwargs={"min_value": 2, "max_value": 5})
     res_between = exp_between._validate_sql(sqlite_engine)
     assert res_between.success is True
 
