@@ -6,8 +6,8 @@
   <p align="center">
     <!-- Build & Tests -->
     <a href="https://github.com/kaviarasanmani/ValidateX/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status (Tests & CI)"></a>
-    <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Code Coverage">
-    <img src="https://img.shields.io/badge/tests-66%20passed-brightgreen" alt="Test Passing Rate">
+    <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Code Coverage">
+    <img src="https://img.shields.io/badge/tests-114%20passed-brightgreen" alt="Test Passing Rate">
     <!-- Package & Language -->
     <a href="https://pypi.org/project/validatex/"><img src="https://img.shields.io/pypi/v/validatex.svg" alt="PyPI Latest Version"></a>
     <img src="https://img.shields.io/badge/python-3.9+-blue?logo=python&logoColor=white" alt="Supported Python Versions">
@@ -95,7 +95,7 @@ ValidateX is not a replacement for Great Expectations — it's a **focused alter
 
 | Feature | Description |
 |---------|-------------|
-| **30+ Built-in Expectations** | Column-level, table-level, aggregate, and sequential cross-validations |
+| **50+ Built-in Expectations** | Column-level, table-level, format, statistical, and sequential cross-validations |
 | **Push-Down SQL Native** | Execute core validation via SQLAlchemy directly on Postgres, Snowflake, or BigQuery |
 | **Triple Engine Support** | Pandas, PySpark, and SQL execution engines |
 | **🎯 Data Quality Score** | Weighted score (0–100) based on severity of checks |
@@ -189,6 +189,39 @@ validatex run --checkpoint checkpoint.yaml
 
 # List available expectations
 validatex list-expectations
+```
+
+---
+
+## 🗄️ Push-Down SQL Native Validation
+
+ValidateX can validate terabytes of data directly inside your database without ever loading DataFrames into Python memory. This generates optimized native queries (like `SELECT COUNT(*)`) under the hood.
+
+```python
+import validatex as vx
+from sqlalchemy import create_engine
+
+# 1. Connect to any database (PostgreSQL, Snowflake, BigQuery, etc.)
+engine = create_engine("postgresql://user:pass@host/db")
+
+# 2. Build your expectation suite
+suite = (
+    vx.ExpectationSuite("users_table_checks")
+    .add("expect_table_row_count_to_be_between", min_value=1_000_000, max_value=5_000_000)
+    .add("expect_column_to_not_be_null", column="email")
+    .add("expect_column_values_to_be_unique", column="user_id")
+    .add("expect_column_values_to_be_between", column="age", min_value=18, max_value=120)
+)
+
+# 3. Validate directly against the SQL table (Zero Pandas overhead!)
+result = vx.validate(
+    data="prod_users",     # Just pass the table name
+    suite=suite,
+    engine="sql",          # Tells ValidateX to use Push-Down SQL
+    sql_engine=engine      # The SQLAlchemy database connection
+)
+
+print(f"Data Quality Score: {result.compute_quality_score()}/100")
 ```
 
 ---
@@ -339,7 +372,7 @@ for col in result.column_health():
 
 ## 📋 Available Expectations
 
-### Column-Level (29)
+### Column-Level (36)
 | Expectation | Severity | Description |
 |------------|----------|-------------|
 | `expect_column_to_exist` | 🔴 Critical | Column exists in DataFrame |
@@ -559,7 +592,7 @@ data = result.to_dict()
 
 ## 🚀 Roadmap
 
-- [x] 25+ built-in expectations (column, table, aggregate)
+- [x] 50+ built-in expectations (column, table, aggregate, statistical, sequential)
 - [x] Pandas, PySpark, and SQL Push-down Dual-engine support
 - [x] Severity modeling (Critical / Warning / Info)
 - [x] Weighted data quality score (0–100)
