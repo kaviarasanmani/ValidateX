@@ -13,7 +13,7 @@ Usage:
     >>> result.to_html("report.html")
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "ValidateX Team"
 
 # Register all built-in expectations on import
@@ -31,6 +31,8 @@ from validatex.core.result import (
 )
 from validatex.core.validator import Validator, validate
 from validatex.profiler.profiler import DataProfiler
+from validatex.drift.detector import DriftDetector
+from validatex.drift.report import DriftReport
 
 __all__ = [
     "Expectation",
@@ -44,4 +46,6 @@ __all__ = [
     "SEVERITY_CRITICAL",
     "SEVERITY_WARNING",
     "SEVERITY_INFO",
+    "DriftDetector",
+    "DriftReport",
 ]

@@ -4,3 +4,4 @@
 import validatex.expectations.column_expectations  # noqa: F401
 import validatex.expectations.table_expectations  # noqa: F401
 import validatex.expectations.aggregate_expectations  # noqa: F401
+import validatex.expectations.sequential_expectations  # noqa: F401

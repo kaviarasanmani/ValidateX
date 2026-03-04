@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="validatex",
-    version="1.0.1",
+    version="1.1.0",
     author="Kaviarasan Mani",
     description="A powerful data quality validation framework inspired by Great Expectations",
     long_description=long_description,

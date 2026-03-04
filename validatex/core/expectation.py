@@ -84,6 +84,8 @@ class Expectation(ABC):
                 return self._validate_pandas(data)
             elif engine == "spark":
                 return self._validate_spark(data)
+            elif engine == "sql":
+                return self._validate_sql(data)
             else:
                 raise ValueError(f"Unsupported engine: {engine}")
         except Exception as exc:
@@ -130,6 +132,12 @@ class Expectation(ABC):
         """Validate using PySpark engine.  Optional override."""
         raise NotImplementedError(
             f"{self.expectation_type} does not support PySpark yet."
+        )
+
+    def _validate_sql(self, engine: Any) -> ExpectationResult:
+        """Validate using SQLAlchemy engine. Optional override."""
+        raise NotImplementedError(
+            f"{self.expectation_type} does not support SQL yet."
         )
 
     # -- helpers -----------------------------------------------------------

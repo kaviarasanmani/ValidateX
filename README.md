@@ -63,11 +63,13 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 |---|---|---|
 | **Setup** | `pip install` → validate in 5 lines | Multi-step setup with contexts & stores |
 | **API** | Fluent, chainable Python API | Heavy config system |
+| **Execution Engines** | Pandas, PySpark, **Native SQL Pushdown** | Pandas, PySpark, SQL |
 | **Severity levels** | ✔ (Critical, Warning, Info) | ❌ |
 | **Quality score** | ✔ (Weighted 0–100) | ❌ |
-| **Auto-suggest expectations**| ✔ | ✔ |
+| **Data Drift (PSI)** | ✔ (Built-in via `validatex.drift`) | Separate plugins |
+| **Airflow Operator** | ✔ (`ValidateXOperator` built-in) | External provider package |
+| **Auto-suggest** | ✔ | ✔ |
 | **Reports** | Modern dark-theme HTML with minicharts | Basic data docs |
-| **Output Data Types** | Clean native Python types | NumPy types leak into JSON |
 | **PySpark Support** | ✔ | ✔ |
 | **Polars Support** | Soon | ✔ |
 | **CI/CD friendly CLI** | ✔ | ❌ |
@@ -93,19 +95,17 @@ ValidateX is not a replacement for Great Expectations — it's a **focused alter
 
 | Feature | Description |
 |---------|-------------|
-| **25+ Built-in Expectations** | Column-level, table-level, and aggregate validations |
-| **Dual Engine Support** | Pandas and PySpark execution engines |
+| **30+ Built-in Expectations** | Column-level, table-level, aggregate, and sequential cross-validations |
+| **Push-Down SQL Native** | Execute core validation via SQLAlchemy directly on Postgres, Snowflake, or BigQuery |
+| **Triple Engine Support** | Pandas, PySpark, and SQL execution engines |
 | **🎯 Data Quality Score** | Weighted score (0–100) based on severity of checks |
 | **🔴🟡🔵 Severity Levels** | Critical / Warning / Info classification for every expectation |
 | **📊 Column Health Summary** | At-a-glance per-column health with mini bar charts |
-| **Modern HTML Reports** | Stunning, self-contained dark-theme reports with animations |
-| **📥 Download Buttons** | Export reports as JSON, CSV, or copy summary to clipboard |
-| **📈 Drift Detection** | Track changes between validation runs |
+| **📈 Data Drift Detection** | Calculate Population Stability Index (PSI) and schema shifts between datasets |
+| **🧩 Airflow Integration** | Natively gate data pipelines via `ValidateXOperator` |
 | **Data Profiling** | Auto-analyse datasets and suggest expectations |
 | **YAML/JSON Config** | Define expectations declaratively |
 | **CLI Interface** | Run validations from the command line |
-| **Checkpoint System** | Tie data sources and suites together |
-| **Extensible** | Create custom expectations with the registry pattern |
 | **Clean Output** | All values are native Python types — zero NumPy leakage |
 
 ---
@@ -229,6 +229,53 @@ jobs:
         with:
           name: validatex-report
           path: dq_report.html
+```
+
+---
+
+## 🧩 Apache Airflow Integration
+
+ValidateX includes a native Apache Airflow operator to completely gate your ETL pipelines based on Data Quality Scores.
+
+```python
+from validatex.integrations.airflow import ValidateXOperator
+
+# This task will FAIL the Airflow DAG if the data quality score is < 95.0
+validate_data = ValidateXOperator(
+    task_id="ensure_data_quality",
+    suite=suite,
+    data_path="s3://my-bucket/daily_users.parquet",
+    data_format="parquet",
+    min_score=95.0, 
+    report_path="/tmp/validatex_daily_report.html"
+)
+```
+
+---
+
+## 📈 Data Drift Detection (PSI)
+
+Stop guessing if distributions have changed. Calculate **Population Stability Index (PSI)** and exact schema changes natively without heavy dependencies.
+
+```python
+import validatex as vx
+
+# Compare Yesterday's data vs Today's data
+detector = vx.DriftDetector(psi_threshold=0.2)
+report = detector.compare(yesterday_df, today_df)
+
+print(report.summary())
+```
+**Output:**
+```
+============================================================
+  ValidateX Data Drift Report
+============================================================
+[1] Schema Changes:
+  No schema changes detected.
+[2] Feature Drift (PSI):
+  🔴 DRIFTED | income               | PSI: 5.6120 (numerical)
+  🟢 STABLE  | age                  | PSI: 0.0034 (numerical)
 ```
 
 ---
@@ -480,13 +527,14 @@ data = result.to_dict()
 ## 🚀 Roadmap
 
 - [x] 25+ built-in expectations (column, table, aggregate)
-- [x] Pandas + PySpark dual-engine support
+- [x] Pandas, PySpark, and SQL Push-down Dual-engine support
 - [x] Severity modeling (Critical / Warning / Info)
 - [x] Weighted data quality score (0–100)
 - [x] Column health summary with mini charts
 - [x] Modern HTML reports with dark theme
-- [x] Download buttons (JSON, CSV, clipboard)
-- [x] Drift detection foundation
+- [x] Data Drift Detection (Population Stability Index / Schema checks)
+- [x] Apache Airflow Integration via `ValidateXOperator`
+- [x] Sequential & Time-Series Anomaly features
 - [x] Data profiler with auto-suggestion
 - [x] CLI with validate, profile, run, init commands
 - [x] YAML/JSON declarative configuration
@@ -495,7 +543,6 @@ data = result.to_dict()
 - [ ] GitHub Action template for CI/CD
 - [ ] Polars engine support
 - [ ] Baseline history tracking & trend charts
-- [ ] Anomaly detection expectations
 - [ ] Great Expectations suite import/migration
 - [ ] Web dashboard for multi-dataset monitoring
 - [ ] dbt integration plugin

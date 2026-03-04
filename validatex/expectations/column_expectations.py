@@ -40,7 +40,22 @@ class ExpectColumnToExist(Expectation):
         exists = self.column in df.columns
         return self._build_result(
             success=exists,
-            observed_value=df.columns,
+            details={"column_exists": exists},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        
+        # Fast query to just get column headers
+        query = f"SELECT * FROM ({query_or_table}) AS subquery LIMIT 1"
+        with engine.connect() as conn:
+            result = conn.execute(text(query))
+            exists = str(self.column) in result.keys()
+                
+        return self._build_result(
+            success=exists,
             details={"column_exists": exists},
         )
 
@@ -82,6 +97,28 @@ class ExpectColumnToNotBeNull(Expectation):
             element_count=total,
             unexpected_count=null_count,
             unexpected_percent=pct,
+            unexpected_percent=pct,
+            details={"null_count": null_count, "total_count": total},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+        engine, query_or_table = sql_source
+        
+        col = str(self.column)
+        query = f"SELECT COUNT(*) as total, SUM(CASE WHEN {col} IS NULL THEN 1 ELSE 0 END) as nulls FROM ({query_or_table}) AS subquery"
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            null_count = int(row.nulls) if row and row.nulls else 0
+            
+        pct = (null_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(null_count == 0),
+            observed_value=null_count,
+            element_count=total,
+            unexpected_count=null_count,
+            unexpected_percent=pct,
             details={"null_count": null_count, "total_count": total},
         )
 
@@ -113,6 +150,30 @@ class ExpectColumnValuesToBeUnique(Expectation):
             unexpected_count=dup_count,
             unexpected_percent=pct,
             unexpected_values=dup_values,
+            unexpected_percent=pct,
+            details={"duplicate_count": dup_count},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+        engine, query_or_table = sql_source
+        
+        col = str(self.column)
+        query = f"SELECT COUNT({col}) as total, COUNT(DISTINCT {col}) as distinct_count FROM ({query_or_table}) AS subquery"
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            distinct = int(row.distinct_count) if row and row.distinct_count else 0
+            
+        dup_count = total - distinct
+        pct = (dup_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(dup_count == 0),
+            observed_value=f"{distinct} unique values out of {total}",
+            element_count=total,
+            unexpected_count=dup_count,
+            unexpected_percent=pct,
             details={"duplicate_count": dup_count},
         )
 

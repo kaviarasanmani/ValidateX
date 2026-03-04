@@ -48,9 +48,23 @@ class ExpectTableRowCountToEqual(Expectation):
         )
 
 
-# ---------------------------------------------------------------------------
-# 2. expect_table_row_count_to_be_between
-# ---------------------------------------------------------------------------
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        expected = self.kwargs.get("value", 0)
+
+        # Wrap the original query/table in a COUNT(*)
+        query = f"SELECT COUNT(*) FROM ({query_or_table}) AS subquery"
+        with engine.connect() as conn:
+            actual = conn.execute(text(query)).scalar()
+
+        return self._build_result(
+            success=(actual == expected),
+            observed_value=actual,
+            element_count=actual,
+            details={"expected_count": expected, "actual_count": actual},
+        )
 
 
 @register_expectation
@@ -92,6 +106,30 @@ class ExpectTableRowCountToBeBetween(Expectation):
                 "max_value": max_val,
                 "actual_count": actual,
             },
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_val = self.kwargs.get("min_value", 0)
+        max_val = self.kwargs.get("max_value", float("inf"))
+
+        query = f"SELECT COUNT(*) FROM ({query_or_table}) AS subquery"
+        with engine.connect() as conn:
+            actual = conn.execute(text(query)).scalar()
+
+        success = True
+        if min_val is not None:
+            success = success and (actual >= min_val)
+        if max_val is not None:
+            success = success and (actual <= max_val)
+
+        return self._build_result(
+            success=success,
+            observed_value=actual,
+            element_count=actual,
+            details={"min_value": min_val, "max_value": max_val, "actual_count": actual},
         )
 
 

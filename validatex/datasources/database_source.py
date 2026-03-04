@@ -47,3 +47,10 @@ class DatabaseDataSource(DataSource):
             "Spark JDBC loading requires additional JDBC driver configuration. "
             "Please load the DataFrame manually and use DataFrameSource instead."
         )
+
+    def load_sql(self) -> Any:
+        from sqlalchemy import create_engine
+        
+        engine = create_engine(self.connection_string)
+        # We return a tuple of (engine, query_or_table) so the SQL expectations can use it
+        return engine, self.query
