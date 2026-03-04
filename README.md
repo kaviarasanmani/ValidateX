@@ -339,7 +339,7 @@ for col in result.column_health():
 
 ## 📋 Available Expectations
 
-### Column-Level (16)
+### Column-Level (29)
 | Expectation | Severity | Description |
 |------------|----------|-------------|
 | `expect_column_to_exist` | 🔴 Critical | Column exists in DataFrame |
@@ -358,6 +358,26 @@ for col in result.column_health():
 | `expect_column_stdev_to_be_between` | 🔵 Info | Column std dev within bounds |
 | `expect_column_distinct_values_to_be_in_set` | 🔵 Info | All distinct values in set |
 | `expect_column_proportion_of_unique_values_to_be_between` | 🔵 Info | Uniqueness ratio in range |
+| `expect_column_values_to_not_match_regex` | 🟡 Warning | Values do not match regex |
+| `expect_column_values_to_be_valid_email` | 🟡 Warning | Values parse as valid emails |
+| `expect_column_values_to_be_json_parseable` | 🟡 Warning | Values are parseable JSON |
+| `expect_column_sum_to_be_between` | 🔵 Info | Column sum within bounds |
+| `expect_column_median_to_be_between` | 🔵 Info | Column median within bounds |
+| `expect_column_value_lengths_to_equal` | 🔵 Info | String lengths exact match |
+| `expect_column_quantile_values_to_be_between` | 🔵 Info | Per-quantile range checks |
+| `expect_column_null_percentage_to_be_less_than` | 🟡 Warning | Null rate < threshold |
+| `expect_column_values_to_be_positive` | 🟡 Warning | All values > 0 |
+| `expect_column_values_to_be_negative` | 🟡 Warning | All values < 0 |
+| `expect_column_values_to_be_in_range_of_std_devs` | 🔵 Info | Outlier / Z-score detection |
+| `expect_column_correlation_to_be_between` | 🔵 Info | Pearson correlation in range |
+| `expect_column_values_to_have_no_whitespace` | 🟡 Warning | No leading/trailing whitespace |
+| `expect_column_values_to_be_valid_url` | 🟡 Warning | Valid HTTP/HTTPS/FTP URLs |
+| `expect_column_values_to_be_valid_ip_address` | 🟡 Warning | Valid IPv4 / IPv6 addresses |
+| `expect_column_values_to_be_valid_uuid` | 🟡 Warning | Valid UUID (any version) |
+| `expect_column_values_to_be_valid_iso_date` | 🟡 Warning | Valid ISO 8601 dates |
+| `expect_column_values_to_be_valid_phone_number` | 🟡 Warning | Valid international phone |
+| `expect_column_values_to_be_all_uppercase` | 🔵 Info | All values UPPERCASED |
+| `expect_column_values_to_be_all_lowercase` | 🔵 Info | All values lowercased |
 
 ### Table-Level (5)
 | Expectation | Severity | Description |
@@ -375,6 +395,19 @@ for col in result.column_health():
 | `expect_column_pair_values_to_be_equal` | 🟡 Warning | Two columns equal |
 | `expect_multicolumn_sum_to_equal` | 🟡 Warning | Row-wise sum equals target |
 | `expect_compound_columns_to_be_unique` | 🔴 Critical | Compound key uniqueness |
+
+### Sequential / Time-Series (2)
+| Expectation | Severity | Description |
+|------------|----------|-------------|
+| `expect_column_values_to_be_increasing` | 🔵 Info | Monotonically increasing |
+| `expect_column_values_to_be_decreasing` | 🔵 Info | Monotonically decreasing |
+
+### Conditional / Cross-Row (3)
+| Expectation | Severity | Description |
+|------------|----------|-------------|
+| `expect_column_values_to_be_null_when` | 🟡 Warning | Column must be null given condition |
+| `expect_column_values_to_be_not_null_when` | 🔴 Critical | Column must not be null given condition |
+| `expect_column_values_to_satisfy` | 🟡 Warning | Pass a Python lambda as custom validation |
 
 ---
 

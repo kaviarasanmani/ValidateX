@@ -13,7 +13,7 @@ Usage:
     >>> result.to_html("report.html")
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "ValidateX Team"
 
 # Register all built-in expectations on import
