@@ -22,7 +22,16 @@ _EXPECTATION_REGISTRY: Dict[str, Type["Expectation"]] = {}
 
 def register_expectation(cls: Type["Expectation"]) -> Type["Expectation"]:
     """Decorator that registers an expectation class by its *type_name*."""
-    name = getattr(cls, "expectation_type", None) or cls.__name__
+    # expectation_type is a dataclass field with init=False and a default value.
+    # We must read the default from __dataclass_fields__ rather than getattr(),
+    # because getattr returns the Field descriptor object (truthy) instead of
+    # the actual default string on uninstantiated classes.
+    fields = getattr(cls, "__dataclass_fields__", {})
+    et_field = fields.get("expectation_type")
+    if et_field is not None:
+        name = et_field.default
+    else:
+        name = getattr(cls, "expectation_type", None) or cls.__name__
     _EXPECTATION_REGISTRY[name] = cls
     return cls
 

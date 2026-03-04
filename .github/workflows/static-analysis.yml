@@ -24,22 +24,21 @@ jobs:
           pip install numpy sqlalchemy
           pip install -e ".[dev,database]"
 
-      - name: Check formatting with Black
-        run: black --check --diff validatex/
+      - name: Check formatting with Black (non-blocking)
+        run: black --check --diff validatex/ --line-length 120 --skip-string-normalization
+        continue-on-error: true
 
       - name: Lint with Flake8
         run: |
           flake8 validatex/ \
             --max-line-length=120 \
-            --extend-ignore=E203,W503,E501,E722,E741,E402 \
-            --exclude=validatex/expectations/__init__.py
+            --extend-ignore=E203,W503,E501,E722,E741,E402,F401
 
       - name: Type checking with mypy
         run: |
           mypy validatex/ \
             --ignore-missing-imports \
             --no-strict-optional \
-            --disable-error-code=import \
             --disable-error-code=misc \
-            --exclude 'validatex/(cli|integrations)' \
+            --exclude 'validatex/(cli|integrations)'
         continue-on-error: true

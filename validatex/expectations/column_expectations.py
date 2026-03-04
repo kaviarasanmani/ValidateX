@@ -149,7 +149,6 @@ class ExpectColumnValuesToBeUnique(Expectation):
             unexpected_count=dup_count,
             unexpected_percent=pct,
             unexpected_values=dup_values,
-            unexpected_percent=pct,
             details={"duplicate_count": dup_count},
         )
 
