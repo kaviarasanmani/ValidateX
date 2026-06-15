@@ -25,9 +25,13 @@ htmlcov/
 .coverage
 coverage.xml
 
-# Reports
+# Reports (generated files)
 validation_reports/
 *.html
+*_report.json
+runs.json
+runs2.json
+validation_report.json
 
 # OS
 .DS_Store
@@ -36,3 +40,6 @@ Thumbs.db
 # Logs
 *.log
 social_media_post.md
+
+# Windows Hadoop binaries (local dev only)
+.hadoop/

@@ -7,10 +7,11 @@ from typing import Any, Dict, Optional
 try:
     from airflow.models import BaseOperator
     from airflow.utils.context import Context
+    _AIRFLOW_AVAILABLE = True
 except ImportError:
-    raise ImportError(
-        "To use the ValidateXOperator, you must install apache-airflow:\n" "    pip install apache-airflow"
-    )
+    BaseOperator = object   # type: ignore[assignment,misc]
+    Context = dict          # type: ignore[assignment,misc]
+    _AIRFLOW_AVAILABLE = False
 
 import pandas as pd
 
@@ -50,6 +51,11 @@ class ValidateXOperator(BaseOperator):
         report_path: Optional[str] = None,
         **kwargs: Any,
     ):
+        if not _AIRFLOW_AVAILABLE:
+            raise ImportError(
+                "To use ValidateXOperator, install Apache Airflow:\n"
+                "    pip install apache-airflow"
+            )
         super().__init__(**kwargs)
         self.suite = suite
         self.data_path = data_path
@@ -74,7 +80,7 @@ class ValidateXOperator(BaseOperator):
 
         # Run ValidateX
         result = validate(df, self.suite)
-        score = result.score
+        score = result.compute_quality_score()
 
         self.log.info(f"\n{result.summary()}")
         self.log.info(f"ValidateX Final Score: {score:.2f} / 100.00")
@@ -84,9 +90,13 @@ class ValidateXOperator(BaseOperator):
             result.to_html(self.report_path)
             self.log.info(f"Saved HTML Data Quality report to {self.report_path}")
 
+        # Derive passed/failed lists from results
+        passed = [r for r in result.results if r.success]
+        failed = [r for r in result.results if not r.success]
+
         # Gate the Airflow pipeline
         if score < self.min_score:
-            failed_cols = [col for col, meta in result.columns.items() if not meta.success]
+            failed_cols = list({r.column for r in failed if r.column})
             raise ValueError(
                 f"Data Quality Gate Failed: Score ({score:.2f}) is below "
                 f"the threshold ({self.min_score}).\n"
@@ -98,7 +108,7 @@ class ValidateXOperator(BaseOperator):
         # Return a serializable dict into XComs so downstream tasks can access the metadata
         return {
             "validatex_score": score,
-            "passed_expectations": result.passed_count,
-            "failed_expectations": result.failed_count,
+            "passed_expectations": len(passed),
+            "failed_expectations": len(failed),
             "report_path": self.report_path,
         }
