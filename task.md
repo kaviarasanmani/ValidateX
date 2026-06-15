@@ -1,28 +1,15 @@
-# ValidateX Upcoming Features Checklist
+# ValidateX Development Task List
 
-This document tracks upcoming roadmap features and integrations for ValidateX.
+- [x] **v1.2.0 Release & Distribution**: Setup package dependencies, pyproject.toml, and twine distribution to PyPI.
+- [x] **Airflow Integration Fixes**: Update `ValidateXOperator` logic and write unit tests.
+- [x] **PySpark Windows Auto-Config**: Create `conftest.py` to auto-detect `JAVA_HOME` and download Spark `winutils.exe` dynamically.
+- [x] **GitHub Action Template**: Build composite `action.yml` for CI/CD integration and write template workflow.
+- [x] **Polars Engine Support (Core)**: Add routing for Polars engine and implement `_validate_polars` for core expectations (`ExpectColumnToExist`, `ExpectColumnToNotBeNull`, `ExpectColumnValuesToBeUnique`, `ExpectColumnValuesToBeBetween`).
 
-- [ ] Slack & Teams Notifications on Failure
-  - [ ] Implement a Slack webhook integration in `validatex.reporting`
-  - [ ] Implement a Microsoft Teams webhook integration
-  - [ ] Add CLI flags `--slack-webhook` and `--teams-webhook`
-  - [ ] Support YAML configuration for alerts
-- [ ] GitHub Action Template for CI/CD
-  - [ ] Create a reusable GitHub Action under `.github/workflows/`
-  - [ ] Document action usage in the user guide
-- [ ] Polars Engine Support
-  - [ ] Extend `Expectation` class with `_validate_polars()`
-  - [ ] Port core column expectations to Polars expressions
-  - [ ] Port table-level expectations to Polars
-- [ ] Baseline History Tracking & Trend Charts
-  - [ ] Create a local run-history database/JSON file store
-  - [ ] Track quality score metrics over time
-  - [ ] Embed trend line charts inside HTML report dashboards
-- [ ] Great Expectations Suite Migration Tool
-  - [ ] Implement a parser to import Great Expectations JSON suites
-  - [ ] Translate standard GE expectation types to ValidateX equivalents
-- [ ] Web Dashboard for Multi-Dataset Monitoring
-  - [ ] Design a lightweight React or Streamlit dashboard
-  - [ ] Support loading multiple validation reports dynamically
-- [ ] dbt Integration Plugin
-  - [ ] Add a dbt test wrapper to run ValidateX checks directly during `dbt test`
+- [/] **Polars Engine Support (Expansion)**: Port the remaining 40+ column, table, and aggregate expectations to Polars.
+- [/] **Slack & Teams Notifications**: Implement webhook-based failure alerts in the reporting layer.
+
+- [ ] **Baseline History Tracking & Trend Charts**: Save validation history locally and render trend lines inside HTML reports.
+- [ ] **Great Expectations Migrator**: Implement CLI parser to import Great Expectations JSON suites.
+- [ ] **Web Dashboard**: Create a lightweight Streamlit/React web dashboard for multi-dataset monitoring.
+- [ ] **dbt Integration**: Write a wrapper to invoke ValidateX checks during `dbt test` runs.
