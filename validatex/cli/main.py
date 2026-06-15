@@ -47,7 +47,7 @@ def cli():
 @cli.command()
 @click.option("--data", "-d", required=True, help="Path to data file (CSV, Parquet).")
 @click.option("--suite", "-s", required=True, help="Path to expectation suite (YAML/JSON).")
-@click.option("--engine", "-e", default="pandas", help="Engine: pandas or spark.")
+@click.option("--engine", "-e", default="pandas", help="Engine: pandas, spark, or polars.")
 @click.option("--report", "-r", default=None, help="Output HTML report path.")
 @click.option("--json-report", "-j", default=None, help="Output JSON report path.")
 def validate(data, suite, engine, report, json_report):
@@ -296,9 +296,19 @@ report:
 
 def _load_data_file(filepath: str, engine: str = "pandas"):
     """Auto-detect file type and load."""
-    import pandas as pd
-
     ext = Path(filepath).suffix.lower()
+    if engine.lower() == "polars":
+        import polars as pl
+        if ext == ".csv":
+            return pl.read_csv(filepath)
+        elif ext in (".parquet", ".pq"):
+            return pl.read_parquet(filepath)
+        elif ext in (".json",):
+            return pl.read_json(filepath)
+        else:
+            return pl.read_csv(filepath)
+
+    import pandas as pd
     if ext == ".csv":
         return pd.read_csv(filepath)
     elif ext in (".parquet", ".pq"):

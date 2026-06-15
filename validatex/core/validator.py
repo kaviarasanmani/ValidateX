@@ -22,7 +22,7 @@ class Validator:
     suite : ExpectationSuite
         The suite of expectations to evaluate.
     engine : str
-        ``"pandas"`` or ``"spark"``.
+        ``"pandas"``, ``"spark"``, or ``"polars"``.
     """
 
     def __init__(self, suite: ExpectationSuite, engine: str = "pandas"):
@@ -77,7 +77,7 @@ def validate(
     data : pd.DataFrame | pyspark.sql.DataFrame
     suite : ExpectationSuite
     engine : str
-        ``"pandas"`` or ``"spark"``.
+        ``"pandas"``, ``"spark"``, or ``"polars"``.
     data_source : str, optional
 
     Returns

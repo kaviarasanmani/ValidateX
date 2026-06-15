@@ -43,6 +43,13 @@ class ExpectColumnToExist(Expectation):
             details={"column_exists": exists},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        exists = self.column in df.columns
+        return self._build_result(
+            success=exists,
+            details={"column_exists": exists},
+        )
+
     def _validate_sql(self, sql_source: Any) -> ExpectationResult:
         from sqlalchemy import text
 
@@ -90,6 +97,21 @@ class ExpectColumnToNotBeNull(Expectation):
 
         total = df.count()
         null_count = df.filter(F.col(str(self.column)).isNull()).count()
+        pct = (null_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(null_count == 0),
+            observed_value=null_count,
+            element_count=total,
+            unexpected_count=null_count,
+            unexpected_percent=pct,
+            details={"null_count": null_count, "total_count": total},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col = str(self.column)
+        total = len(df)
+        null_count = int(df[col].is_null().sum())
         pct = (null_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(null_count == 0),
@@ -191,6 +213,24 @@ class ExpectColumnValuesToBeUnique(Expectation):
             details={"duplicate_count": dup_count, "distinct_count": distinct_count},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col = str(self.column)
+        total = len(df)
+        dup_count = int(df[col].is_duplicated().sum())
+        distinct_count = int(df[col].n_unique())
+        pct = (dup_count / total * 100) if total > 0 else 0.0
+        dup_values = df.filter(pl.col(col).is_duplicated())[col].unique().to_list()[:20]
+        return self._build_result(
+            success=(dup_count == 0),
+            observed_value=f"{distinct_count} unique out of {total}",
+            element_count=total,
+            unexpected_count=dup_count,
+            unexpected_percent=pct,
+            unexpected_values=dup_values,
+            details={"duplicate_count": dup_count, "distinct_count": distinct_count},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. expect_column_values_to_be_between
@@ -283,6 +323,50 @@ class ExpectColumnValuesToBeBetween(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             details={"min_value": min_val, "max_value": max_val},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col = str(self.column)
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        strict_min = self.kwargs.get("strict_min", False)
+        strict_max = self.kwargs.get("strict_max", False)
+
+        series = df[col].drop_nulls()
+        total = len(series)
+
+        if min_val is not None:
+            mask_low = series <= min_val if strict_min else series < min_val
+        else:
+            mask_low = pl.Series(values=[False] * total, dtype=pl.Boolean)
+
+        if max_val is not None:
+            mask_high = series >= max_val if strict_max else series > max_val
+        else:
+            mask_high = pl.Series(values=[False] * total, dtype=pl.Boolean)
+
+        unexpected_mask = mask_low | mask_high
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = series.filter(unexpected_mask).to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={
+                "min": series.min() if total > 0 else None,
+                "max": series.max() if total > 0 else None,
+            },
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "strict_min": strict_min,
+                "strict_max": strict_max,
+            },
         )
 
 

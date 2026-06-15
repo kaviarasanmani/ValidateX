@@ -43,3 +43,7 @@ class CSVDataSource(DataSource):
         for k, v in self.read_options.items():
             reader = reader.option(k, v)
         return reader.csv(self.filepath)
+
+    def load_polars(self) -> Any:
+        import polars as pl
+        return pl.read_csv(self.filepath, **self.read_options)
