@@ -1,0 +1,35 @@
+name: Data Quality Validation Example
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Example step using the ValidateX GitHub Action
+      - name: Run Data Quality Gate
+        uses: kaviarasanmani/ValidateX@main
+        with:
+          data-path: 'validatex/core/expectation.py' # Placeholder data file for testing
+          suite-path: 'suites/sample_suite.yaml'
+          report-path: 'reports/validation_report.html'
+          json-report-path: 'reports/validation_report.json'
+
+      - name: Upload Report Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validatex-report
+          path: reports/

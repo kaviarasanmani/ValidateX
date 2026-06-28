@@ -1,0 +1,52 @@
+name: 'ValidateX Data Quality Gate'
+description: 'Gate your CI/CD pipelines based on data quality scores and validation rules using ValidateX.'
+author: 'Kaviarasan Mani'
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  data-path:
+    description: 'Path to the data file to validate (e.g., CSV, Parquet).'
+    required: true
+  suite-path:
+    description: 'Path to the expectation suite configuration file (YAML or JSON).'
+    required: true
+  engine:
+    description: 'Validation engine to use (pandas or spark).'
+    required: false
+    default: 'pandas'
+  report-path:
+    description: 'Path where the generated HTML quality report should be saved.'
+    required: false
+  json-report-path:
+    description: 'Path where the generated JSON quality report should be saved.'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        if [ "${{ inputs.engine }}" = "spark" ]; then
+          echo "Installing ValidateX with Spark support..."
+          pip install "validatex[spark]"
+        else
+          echo "Installing ValidateX..."
+          pip install validatex
+        fi
+
+    - name: Run ValidateX Data Quality Validation
+      shell: bash
+      run: |
+        CMD="validatex validate --data \"${{ inputs.data-path }}\" --suite \"${{ inputs.suite-path }}\" --engine \"${{ inputs.engine }}\""
+        if [ -n "${{ inputs.report-path }}" ]; then
+          CMD="$CMD --report \"${{ inputs.report-path }}\""
+        fi
+        if [ -n "${{ inputs.json-report-path }}" ]; then
+          CMD="$CMD --json-report \"${{ inputs.json-report-path }}\""
+        fi
+        echo "Executing: $CMD"
+        eval $CMD

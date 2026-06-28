@@ -925,6 +925,47 @@ A critical failure counts 3× more than an info failure.
 
 ### GitHub Actions
 
+You can use the **ValidateX GitHub Action** to run checks natively and automatically manage Python installation and dependencies, or you can invoke the CLI manually.
+
+#### Option A: Using the ValidateX GitHub Action (Recommended)
+
+This composite action automatically installs Python dependencies, runs the quality checks, and handles the CLI invocation:
+
+```yaml
+name: Data Quality Check
+on: [push, pull_request]
+
+jobs:
+  validate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Data Quality Gate
+        uses: kaviarasanmani/ValidateX@main  # Or lock to a specific version (e.g. v1.2.0)
+        with:
+          data-path: 'data/production_data.csv'
+          suite-path: 'tests/suite.yaml'
+          report-path: 'dq_report.html'
+          engine: 'pandas'                  # pandas or spark
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validatex-report
+          path: dq_report.html
+```
+
+#### Option B: Manual CLI Execution (Fallback)
+
+If you prefer to manage the virtual environment or run validation commands manually, use the CLI directly:
+
 ```yaml
 name: Data Quality Check
 on: [push, pull_request]
