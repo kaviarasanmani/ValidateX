@@ -3,7 +3,7 @@ pyyaml>=6.0.3
 jinja2>=3.0
 click>=8.1.8
 rich>=15.0.0
-colorama>=0.4.0
+colorama>=0.4.6
 sqlalchemy>=2.0.49
 
 # Optional — install via extras: pip install "validatex[spark]"
