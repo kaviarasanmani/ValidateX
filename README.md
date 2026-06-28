@@ -8,10 +8,12 @@
     <a href="https://github.com/kaviarasanmani/ValidateX/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status (Tests & CI)"></a>
     <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Code Coverage">
     <img src="https://img.shields.io/badge/tests-128%20passed-brightgreen" alt="Test Passing Rate">
-    <!-- Package & Language -->
+    <!-- Package, Downloads & Language -->
     <a href="https://pypi.org/project/validatex/"><img src="https://img.shields.io/pypi/v/validatex.svg" alt="PyPI Latest Version"></a>
+    <img src="https://img.shields.io/pypi/dm/validatex.svg" alt="PyPI Monthly Downloads">
     <img src="https://img.shields.io/badge/python-3.9+-blue?logo=python&logoColor=white" alt="Supported Python Versions">
-    <!-- License & Style -->
+    <!-- License, Stars & Style -->
+    <img src="https://img.shields.io/github/stars/kaviarasanmani/ValidateX?style=flat&color=yellow" alt="GitHub Stars">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
     <img src="https://img.shields.io/badge/code%20style-black-000000" alt="Code Style: black">
   </p>
@@ -62,23 +64,17 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 
 ## 🤔 Why ValidateX?
 
-| Feature | **ValidateX** | **Great Expectations** |
-|---|---|---|
-| **Setup** | `pip install` → validate in 5 lines | Multi-step setup with contexts & stores |
-| **API** | Fluent, chainable Python API | Heavy config system |
-| **Execution Engines** | Pandas, Polars, PySpark, **Native SQL Pushdown** | Pandas, PySpark, SQL |
-| **Severity levels** | ✔ (Critical, Warning, Info) | ❌ |
-| **Quality score** | ✔ (Weighted 0–100) | ❌ |
-| **Data Drift (PSI)** | ✔ (Built-in via `validatex.drift`) | Separate plugins |
-| **Airflow Operator** | ✔ (`ValidateXOperator` built-in) | External provider package |
-| **Slack & Teams Alerts** | ✔ (Built-in Webhook Alerts) | Complex Notification Webhooks |
-| **Auto-suggest** | ✔ | ✔ |
-| **Reports** | Modern dark-theme HTML with minicharts | Basic data docs |
-| **PySpark Support** | ✔ | ✔ |
-| **Polars Support** | ✔ | ✔ |
-| **CI/CD friendly CLI** | ✔ | ❌ |
-| **Downloads** | JSON / CSV / clipboard built into report | Separate export |
-| **Learning curve** | Minutes | Hours to days |
+| Feature | **ValidateX** | **Great Expectations** | **Pandera** |
+|---|---|---|---|
+| **Easy Setup** | ✅ `pip install` → validate in 5 lines | ⚠️ Heavy multi-step context setup | ✅ Decorator & Schema API |
+| **HTML Report Generator** | ✅ Modern dark-theme report | ✅ Data docs site | ❌ Basic schema error logs |
+| **Data Quality Score** | ✅ Weighted (0–100) business score | ❌ | ❌ |
+| **PySpark Support** | ✅ Distributed DataFrame support | ✅ | ⚠️ Limited PySpark engine |
+| **Polars Support** | ✅ Multi-threaded Rust support | ✅ | ⚠️ |
+| **Push-Down SQL Native** | ✅ Postgres, Snowflake, BigQuery, DuckDB | ✅ | ❌ |
+| **Data Drift (PSI)** | ✅ Built-in PSI & Schema shifts | ❌ Separate plugins | ❌ |
+| **Airflow Operator** | ✅ `ValidateXOperator` built-in | ⚠️ External provider | ❌ |
+| **Webhook Alerts** | ✅ Slack & Teams built-in | ⚠️ Complex webhook setups | ❌ |
 
 ValidateX is not a replacement for Great Expectations — it's a **focused alternative** for teams that want production-grade data validation without the overhead.
 
@@ -90,12 +86,12 @@ Execution performance measured on standard datasets across Pandas and Polars eng
 
 | Dataset Size | Engine | Execution Time | Peak Memory | Setup / API Lines |
 |---|---|---|---|---|
-| **100,000 rows** | Pandas | **0.03s** | 2.1 MB | 5 lines |
-| **100,000 rows** | Polars | **0.03s** | < 1 MB | 5 lines |
-| **500,000 rows** | Pandas | **0.09s** | 16.6 MB | 5 lines |
-| **500,000 rows** | Polars | **0.15s** | < 1 MB | 5 lines |
-| **1,000,000 rows** | Pandas | **0.15s** | 33.2 MB | 5 lines |
-| **1,000,000 rows** | Polars | **0.24s** | < 1 MB | 5 lines |
+| **100,000 rows** | Pandas | **0.04s** | 2.1 MB | 5 lines |
+| **100,000 rows** | Polars | **0.04s** | < 1 MB | 5 lines |
+| **1,000,000 rows** | Pandas | **0.18s** | 33.2 MB | 5 lines |
+| **1,000,000 rows** | Polars | **0.27s** | < 1 MB | 5 lines |
+| **10,000,000 rows** | Pandas | **1.68s** | 268.5 MB | 5 lines |
+| **10,000,000 rows** | Polars | **4.51s** | < 1 MB | 5 lines |
 
 ---
 
@@ -107,6 +103,7 @@ Explore production-ready validation examples tailored for major data domains in 
 - 🛒 **[Sales ETL Pipeline Validation](examples/showcase/showcase_sales_etl.py)** — Order revenue consistency, non-negative quantities, ISO timestamps.
 - 🏦 **[Banking Transaction Audit](examples/showcase/showcase_banking_transactions.py)** — UUID ledger checks, strict currency sets, Z-score outlier detection.
 - 🏥 **[Healthcare Claims Quality Gate](examples/showcase/showcase_healthcare_claims.py)** — ICD-10 diagnosis formatting, admission/discharge date ordering.
+- 📦 **[Retail Inventory & Supply Chain](examples/showcase/showcase_retail_inventory.py)** — Multi-warehouse inventory, SKU regex checks, reorder point auditing.
 
 ---
 
@@ -231,6 +228,12 @@ Explore comprehensive guides, FAQs, and migration documentation:
 - 🔁 **[Migration Guide (Great Expectations & AWS Deequ)](docs/MIGRATION_GUIDE.md)** — Step-by-step instructions for converting legacy suites to ValidateX.
 - ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Security, engine performance, custom expectations, and alert setup.
 - 🛠️ **[GitHub Action Setup](action.yml)** — Automate data quality gates in CI/CD.
+
+### 📰 Technical Articles & Guides
+- 🛡️ **[10 Data Quality Checks Every Data Engineer Needs](docs/articles/10_data_quality_checks_every_data_engineer_needs.md)**
+- ⚡ **[Validate Pandas DataFrames in Minutes](docs/articles/validate_pandas_dataframes_in_minutes.md)**
+- ⚖️ **[ValidateX vs Great Expectations Architectural Comparison](docs/articles/validatex_vs_great_expectations.md)**
+- 📊 **[How to Generate Beautiful HTML Data Quality Reports](docs/articles/how_to_generate_beautiful_html_data_quality_reports.md)**
 
 ---
 

@@ -22,17 +22,18 @@ import validatex as vx
 def generate_synthetic_dataset(num_rows: int) -> pd.DataFrame:
     """Generate reproducible synthetic benchmark dataset."""
     np.random.seed(42)
+    user_ids = np.arange(1, num_rows + 1)
     return pd.DataFrame({
-        "user_id": np.arange(1, num_rows + 1),
+        "user_id": user_ids,
         "age": np.random.randint(18, 90, size=num_rows),
-        "email": [f"user_{i}@example.com" for i in range(1, num_rows + 1)],
+        "email": np.char.add("user_", np.char.add(user_ids.astype(str), "@example.com")),
         "status": np.random.choice(["ACTIVE", "INACTIVE", "PENDING"], size=num_rows),
         "score": np.random.uniform(0.0, 100.0, size=num_rows),
     })
 
 def run_benchmark():
     print("⚡ Running ValidateX Performance Benchmark Suite...\n")
-    sizes = [100_000, 500_000, 1_000_000]
+    sizes = [100_000, 1_000_000, 10_000_000]
     results = []
 
     for size in sizes:
