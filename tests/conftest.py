@@ -9,10 +9,13 @@ Responsibilities:
   4. Gracefully skip PySpark tests if Java cannot be found anywhere.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import glob
 import subprocess
+from typing import Optional
 import pytest
 
 
@@ -20,7 +23,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _find_java_home() -> str | None:
+def _find_java_home() -> Optional[str]:
     """
     Try several strategies to locate a JDK/JRE root directory:
 
@@ -87,7 +90,7 @@ def _find_java_home() -> str | None:
     return None
 
 
-def _find_hadoop_home() -> str | None:
+def _find_hadoop_home() -> Optional[str]:
     """
     Look for the .hadoop directory with winutils.exe (Windows only).
     Checks next to conftest.py and up to the project root.
