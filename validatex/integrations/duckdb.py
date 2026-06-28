@@ -11,6 +11,7 @@ import validatex as vx
 from validatex.core.result import ValidationResult
 from validatex.core.suite import ExpectationSuite
 
+
 class ValidateXDuckDB:
     """
     Helper for validating DuckDB tables or queries with ValidateX.
