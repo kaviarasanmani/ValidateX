@@ -226,8 +226,10 @@ validatex list-expectations
 Explore comprehensive guides, FAQs, and migration documentation:
 
 - 🔁 **[Migration Guide (Great Expectations & AWS Deequ)](docs/MIGRATION_GUIDE.md)** — Step-by-step instructions for converting legacy suites to ValidateX.
+- 🏛️ **[Architectural Decisions & Safeguards (ADR)](docs/ARCHITECTURAL_DECISIONS.md)** — Compute alignment, memory safeguards, and RunStore.
+- 🛠️ **[Custom Expectations Developer Guide](docs/CUSTOM_EXPECTATIONS_GUIDE.md)** — Extend ValidateX with domain-specific rules.
 - ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Security, engine performance, custom expectations, and alert setup.
-- 🛠️ **[GitHub Action Setup](action.yml)** — Automate data quality gates in CI/CD.
+- ⚙️ **[GitHub Action Setup](action.yml)** — Automate data quality gates in CI/CD.
 
 ### 📰 Technical Articles & Guides
 - 🛡️ **[10 Data Quality Checks Every Data Engineer Needs](docs/articles/10_data_quality_checks_every_data_engineer_needs.md)**

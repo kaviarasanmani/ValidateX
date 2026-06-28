@@ -452,6 +452,13 @@ class ValidationResult:
         generator = HTMLReportGenerator()
         generator.generate(self, filepath)
 
+    def save_to_store(self, store_path: Optional[str] = None) -> int:
+        """Log this validation run to a local RunStore database."""
+        from validatex.storage.run_store import RunStore
+
+        store = RunStore(db_path=store_path)
+        return store.log_run(self)
+
     def send_slack(self, webhook_url: Optional[str] = None, notify_on: str = "failure") -> bool:
         """
         Send a validation alert to Slack via incoming webhook.
