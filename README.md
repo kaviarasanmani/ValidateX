@@ -25,10 +25,13 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 ## 📑 Table of Contents
 - [🖼️ Report Preview](#️-report-preview)
 - [🤔 Why ValidateX?](#-why-validatex)
+- [⚡ Performance Benchmarks](#-performance-benchmarks)
+- [💼 Real-World Industry Showcases](#-real-world-industry-showcases)
 - [🎯 Who Is This For?](#-who-is-this-for)
 - [✨ Features](#-features)
 - [📦 Installation](#-installation)
 - [🏁 Quick Start](#-quick-start)
+- [📚 Documentation Hub](#-documentation-hub)
 - [🤖 Automate with CI/CD](#-automate-with-cicd)
 - [🎯 Data Quality Score](#-data-quality-score)
 - [📋 Available Expectations](#-available-expectations)
@@ -78,6 +81,32 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 | **Learning curve** | Minutes | Hours to days |
 
 ValidateX is not a replacement for Great Expectations — it's a **focused alternative** for teams that want production-grade data validation without the overhead.
+
+---
+
+## ⚡ Performance Benchmarks
+
+Execution performance measured on standard datasets across Pandas and Polars engines (run via `python -m benchmarks.benchmark_suite`):
+
+| Dataset Size | Engine | Execution Time | Peak Memory | Setup / API Lines |
+|---|---|---|---|---|
+| **100,000 rows** | Pandas | **0.03s** | 2.1 MB | 5 lines |
+| **100,000 rows** | Polars | **0.03s** | < 1 MB | 5 lines |
+| **500,000 rows** | Pandas | **0.09s** | 16.6 MB | 5 lines |
+| **500,000 rows** | Polars | **0.15s** | < 1 MB | 5 lines |
+| **1,000,000 rows** | Pandas | **0.15s** | 33.2 MB | 5 lines |
+| **1,000,000 rows** | Polars | **0.24s** | < 1 MB | 5 lines |
+
+---
+
+## 💼 Real-World Industry Showcases
+
+Explore production-ready validation examples tailored for major data domains in `examples/showcase/`:
+
+- 👤 **[Customer 360 Validation](examples/showcase/showcase_customer_360.py)** — Demographic bounds, email pattern checks, loyalty tier rules.
+- 🛒 **[Sales ETL Pipeline Validation](examples/showcase/showcase_sales_etl.py)** — Order revenue consistency, non-negative quantities, ISO timestamps.
+- 🏦 **[Banking Transaction Audit](examples/showcase/showcase_banking_transactions.py)** — UUID ledger checks, strict currency sets, Z-score outlier detection.
+- 🏥 **[Healthcare Claims Quality Gate](examples/showcase/showcase_healthcare_claims.py)** — ICD-10 diagnosis formatting, admission/discharge date ordering.
 
 ---
 
@@ -192,6 +221,16 @@ validatex run --checkpoint checkpoint.yaml
 # List available expectations
 validatex list-expectations
 ```
+
+---
+
+## 📚 Documentation Hub
+
+Explore comprehensive guides, FAQs, and migration documentation:
+
+- 🔁 **[Migration Guide (Great Expectations & AWS Deequ)](docs/MIGRATION_GUIDE.md)** — Step-by-step instructions for converting legacy suites to ValidateX.
+- ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Security, engine performance, custom expectations, and alert setup.
+- 🛠️ **[GitHub Action Setup](action.yml)** — Automate data quality gates in CI/CD.
 
 ---
 

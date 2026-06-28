@@ -1,0 +1,280 @@
+{
+  "suite_name": "customer_360_quality",
+  "success": true,
+  "statistics": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "errors": 0,
+    "success_percent": 100.0,
+    "overall_success": true,
+    "quality_score": 100.0,
+    "run_time": "2026-06-28T23:19:12.125609",
+    "run_duration_seconds": 0.01
+  },
+  "quality_score": 100.0,
+  "column_health": [
+    {
+      "column": "account_status",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "age",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "customer_id",
+      "checks": 3,
+      "passed": 3,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": 0,
+      "null_percent": 0.0,
+      "unique_count": 5,
+      "unique_percent": 100.0
+    },
+    {
+      "column": "email",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "lifetime_spend",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "loyalty_tier",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "__table__",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    }
+  ],
+  "data_source": null,
+  "engine": "pandas",
+  "results": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": null,
+      "observed_value": 5,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 1,
+        "max_value": 1000000,
+        "actual_count": 5
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_not_be_null",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "customer_id",
+      "observed_value": 0,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "null_count": 0,
+        "total_count": 5
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "customer_id",
+      "observed_value": "5 unique out of 5",
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "duplicate_count": 0
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "customer_id",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "regex": "^CUST-\\d{3,}$"
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_valid_email",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "email",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {},
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "age",
+      "observed_value": {
+        "min": 28,
+        "max": 52
+      },
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "min_value": 18,
+        "max_value": 120,
+        "strict_min": false,
+        "strict_max": false
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "account_status",
+      "observed_value": {
+        "unique_values": 3
+      },
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "value_set": [
+          "PENDING",
+          "SUSPENDED",
+          "INACTIVE",
+          "ACTIVE"
+        ]
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "loyalty_tier",
+      "observed_value": {
+        "unique_values": 4
+      },
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "value_set": [
+          "GOLD",
+          "BRONZE",
+          "PLATINUM",
+          "SILVER"
+        ]
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_positive",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "lifetime_spend",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "allow_zero": false
+      },
+      "exception_info": null,
+      "meta": {}
+    }
+  ]
+}

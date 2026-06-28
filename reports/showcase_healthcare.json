@@ -1,0 +1,230 @@
+{
+  "suite_name": "healthcare_claims_checks",
+  "success": false,
+  "statistics": {
+    "total": 8,
+    "passed": 7,
+    "failed": 1,
+    "errors": 0,
+    "success_percent": 87.5,
+    "overall_success": false,
+    "quality_score": 89.5,
+    "run_time": "2026-06-28T23:19:46.547028",
+    "run_duration_seconds": 0.01
+  },
+  "quality_score": 89.5,
+  "column_health": [
+    {
+      "column": "admission_date",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "billed_amount",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "claim_id",
+      "checks": 2,
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": 0,
+      "null_percent": 0.0,
+      "unique_count": 5,
+      "unique_percent": 100.0
+    },
+    {
+      "column": "discharge_date",
+      "checks": 2,
+      "passed": 1,
+      "failed": 1,
+      "errors": 0,
+      "health_score": 50.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "icd10_code",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": null,
+      "null_percent": null,
+      "unique_count": null,
+      "unique_percent": null
+    },
+    {
+      "column": "patient_id",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "errors": 0,
+      "health_score": 100.0,
+      "null_count": 0,
+      "null_percent": 0.0,
+      "unique_count": null,
+      "unique_percent": null
+    }
+  ],
+  "data_source": null,
+  "engine": "pandas",
+  "results": [
+    {
+      "expectation_type": "expect_column_to_not_be_null",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "claim_id",
+      "observed_value": 0,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "null_count": 0,
+        "total_count": 5
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "claim_id",
+      "observed_value": "5 unique out of 5",
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "duplicate_count": 0
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_to_not_be_null",
+      "success": true,
+      "status": "PASSED",
+      "severity": "critical",
+      "column": "patient_id",
+      "observed_value": 0,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "null_count": 0,
+        "total_count": 5
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "icd10_code",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "regex": "^[A-Z][0-9][0-9A-Z](\\.[0-9A-Z]{1,4})?$"
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_valid_iso_date",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "admission_date",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {},
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_valid_iso_date",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "discharge_date",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {},
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_pair_values_a_to_be_greater_than_b",
+      "success": false,
+      "status": "FAILED",
+      "severity": "warning",
+      "column": "discharge_date",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 2,
+      "unexpected_percent": 40.0,
+      "unexpected_values": [],
+      "details": {
+        "column_a": "discharge_date",
+        "column_b": "admission_date",
+        "or_equal": false
+      },
+      "exception_info": null,
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_positive",
+      "success": true,
+      "status": "PASSED",
+      "severity": "warning",
+      "column": "billed_amount",
+      "observed_value": null,
+      "element_count": 5,
+      "unexpected_count": 0,
+      "unexpected_percent": 0.0,
+      "unexpected_values": [],
+      "details": {
+        "allow_zero": false
+      },
+      "exception_info": null,
+      "meta": {}
+    }
+  ]
+}
