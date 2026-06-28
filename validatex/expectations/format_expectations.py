@@ -40,6 +40,19 @@ def _build_unexpected(series, unexpected_mask):
     return total, unexpected_count, pct, unexpected_values
 
 
+def _polars_vectorized_match(series, pattern: re.Pattern):
+    import polars as pl
+    return series.cast(pl.String).map_elements(lambda x: bool(pattern.match(x)), return_dtype=pl.Boolean)
+
+
+def _polars_build_unexpected(series, unexpected_mask):
+    unexpected_count = int(unexpected_mask.sum())
+    total = len(series)
+    pct = (unexpected_count / total * 100) if total > 0 else 0.0
+    unexpected_values = series.filter(unexpected_mask).to_list()[:20]
+    return total, unexpected_count, pct, unexpected_values
+
+
 # ---------------------------------------------------------------------------
 # 1. expect_column_values_to_be_valid_url
 # ---------------------------------------------------------------------------
@@ -75,6 +88,19 @@ class ExpectColumnValuesToBeValidUrl(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls()
+        unexpected_mask = ~_polars_vectorized_match(series, _URL_PATTERN)
+        total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
         return self._build_result(
             success=(cnt == 0),
             element_count=total,
@@ -129,6 +155,23 @@ class ExpectColumnValuesToBeValidIpAddress(Expectation):
             unexpected_values=vals,
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls()
+        matches = series.cast(pl.String).map_elements(
+            lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x)),
+            return_dtype=pl.Boolean
+        )
+        unexpected_mask = ~matches
+        total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
+
 
 # ---------------------------------------------------------------------------
 # 3. expect_column_values_to_be_valid_uuid
@@ -165,6 +208,19 @@ class ExpectColumnValuesToBeValidUuid(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls()
+        unexpected_mask = ~_polars_vectorized_match(series, _UUID_PATTERN)
+        total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
         return self._build_result(
             success=(cnt == 0),
             element_count=total,
@@ -217,6 +273,19 @@ class ExpectColumnValuesToBeValidIsoDate(Expectation):
             unexpected_values=vals,
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls()
+        unexpected_mask = ~_polars_vectorized_match(series, _ISO_DATE_PATTERN)
+        total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
+
 
 # ---------------------------------------------------------------------------
 # 5. expect_column_values_to_be_valid_phone_number
@@ -253,6 +322,19 @@ class ExpectColumnValuesToBeValidPhoneNumber(Expectation):
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]
+        return self._build_result(
+            success=(cnt == 0),
+            element_count=total,
+            unexpected_count=cnt,
+            unexpected_percent=pct,
+            unexpected_values=vals,
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls()
+        unexpected_mask = ~_polars_vectorized_match(series, _PHONE_PATTERN)
+        total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
         return self._build_result(
             success=(cnt == 0),
             element_count=total,
@@ -306,6 +388,21 @@ class ExpectColumnValuesToBeAllUppercase(Expectation):
             unexpected_values=vals,
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+        unexpected_mask = series != series.str.to_uppercase()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+        )
+
 
 # ---------------------------------------------------------------------------
 # 7. expect_column_values_to_be_all_lowercase
@@ -349,4 +446,19 @@ class ExpectColumnValuesToBeAllLowercase(Expectation):
             unexpected_count=cnt,
             unexpected_percent=pct,
             unexpected_values=vals,
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+        unexpected_mask = series != series.str.to_lowercase()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
         )

@@ -442,6 +442,68 @@ class ValidationResult:
         generator = HTMLReportGenerator()
         generator.generate(self, filepath)
 
+    def send_slack(self, webhook_url: Optional[str] = None, notify_on: str = "failure") -> bool:
+        """
+        Send a validation alert to Slack via incoming webhook.
+
+        Parameters
+        ----------
+        webhook_url : str, optional
+            The Slack webhook URL. If not provided, will look for the
+            VALIDATEX_SLACK_WEBHOOK_URL environment variable.
+        notify_on : str, default "failure"
+            When to send notifications. Options: ``"failure"`` or ``"always"``.
+
+        Returns
+        -------
+        bool
+            True if notification was sent successfully or skipped by config, False otherwise.
+        """
+        import os
+        url = webhook_url or os.environ.get("VALIDATEX_SLACK_WEBHOOK_URL")
+        if not url:
+            import sys
+            sys.stderr.write("ValidateX Slack Alert: No webhook URL provided and VALIDATEX_SLACK_WEBHOOK_URL not set.\n")
+            return False
+
+        # Check notify_on condition
+        if notify_on == "failure" and self.success:
+            return True  # Skipped successfully since it passed
+
+        from validatex.reporting.alerts import SlackNotifier
+        return SlackNotifier.send(self, url)
+
+    def send_teams(self, webhook_url: Optional[str] = None, notify_on: str = "failure") -> bool:
+        """
+        Send a validation alert to Microsoft Teams via incoming webhook.
+
+        Parameters
+        ----------
+        webhook_url : str, optional
+            The Microsoft Teams webhook URL. If not provided, will look for the
+            VALIDATEX_TEAMS_WEBHOOK_URL environment variable.
+        notify_on : str, default "failure"
+            When to send notifications. Options: ``"failure"`` or ``"always"``.
+
+        Returns
+        -------
+        bool
+            True if notification was sent successfully or skipped by config, False otherwise.
+        """
+        import os
+        url = webhook_url or os.environ.get("VALIDATEX_TEAMS_WEBHOOK_URL")
+        if not url:
+            import sys
+            sys.stderr.write("ValidateX Teams Alert: No webhook URL provided and VALIDATEX_TEAMS_WEBHOOK_URL not set.\n")
+            return False
+
+        # Check notify_on condition
+        if notify_on == "failure" and self.success:
+            return True  # Skipped successfully since it passed
+
+        from validatex.reporting.alerts import TeamsNotifier
+        return TeamsNotifier.send(self, url)
+
     def summary(self) -> str:
         """Return a human-readable summary string."""
         self.compute_statistics()

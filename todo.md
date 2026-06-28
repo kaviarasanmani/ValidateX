@@ -7,11 +7,11 @@ This file tracks the status of the ValidateX development tasks and upcoming road
 - [x] **Airflow Integration Fixes**: Update `ValidateXOperator` logic and write unit tests.
 - [x] **PySpark Windows Auto-Config**: Create `conftest.py` to auto-detect `JAVA_HOME` and download Spark `winutils.exe` dynamically.
 - [x] **GitHub Action Template**: Build composite `action.yml` for CI/CD integration and write template workflow.
-- [x] **Polars Engine Support (Core)**: Add routing for Polars engine and implement `_validate_polars` for core expectations (`ExpectColumnToExist`, `ExpectColumnToNotBeNull`, `ExpectColumnValuesToBeUnique`, `ExpectColumnValuesToBeBetween`).
+- [x] **Polars Engine Support (Core & Expansion)**: Add routing for Polars engine and implement `_validate_polars` for all column, table, sequential, format, advanced, conditional, aggregate, and statistical expectations.
+- [x] **Polars Engine Verification**: Create a dummy test file and run quality checks on a Polars DataFrame to verify the engine functionality.
+- [x] **Slack & Teams Notifications**: Implement webhook-based alerts in the reporting layer.
 
 ## In Progress
-- [/] **Polars Engine Support (Expansion)**: Port the remaining 40+ column, table, and aggregate expectations to Polars.
-- [/] **Slack & Teams Notifications**: Implement webhook-based failure alerts in the reporting layer.
 
 ## Upcoming Work
 - [ ] **Baseline History Tracking & Trend Charts**: Save validation history locally and render trend lines inside HTML reports.

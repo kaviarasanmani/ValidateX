@@ -31,7 +31,7 @@ class CheckpointConfig:
     engine : str
         Engine to use: ``"pandas"`` or ``"spark"``.
     report : dict
-        Report configuration (format, output_path).
+        Report configuration (html, json, slack, teams).
     """
 
     name: str = "default_checkpoint"

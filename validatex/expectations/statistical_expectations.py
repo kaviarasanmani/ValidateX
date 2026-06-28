@@ -75,6 +75,44 @@ class ExpectColumnQuantileValuesToBeBetween(Expectation):
             details={'quantile_checks': rows, 'failed_quantiles': failures},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        quantiles: List[float] = self.kwargs.get('quantiles', [])
+        value_ranges: List[List[Optional[float]]] = self.kwargs.get('value_ranges', [])
+
+        if len(quantiles) != len(value_ranges):
+            raise ValueError("'quantiles' and 'value_ranges' must have the same length.")
+
+        series = df[self.column].drop_nulls()
+        total = len(series)
+        computed = [float(series.quantile(q)) for q in quantiles]
+
+        failures = []
+        rows = []
+        for q, (lo, hi), actual in zip(quantiles, value_ranges, computed):
+            ok = True
+            if lo is not None and actual < lo:
+                ok = False
+            if hi is not None and actual > hi:
+                ok = False
+            if not ok:
+                failures.append(q)
+            rows.append(
+                {
+                    'quantile': q,
+                    'value': round(float(actual), 6),
+                    'min_value': lo,
+                    'max_value': hi,
+                    'success': ok,
+                }
+            )
+
+        return self._build_result(
+            success=len(failures) == 0,
+            observed_value={str(r['quantile']): r['value'] for r in rows},
+            element_count=total,
+            details={'quantile_checks': rows, 'failed_quantiles': failures},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 2. expect_column_null_percentage_to_be_less_than
@@ -109,6 +147,19 @@ class ExpectColumnNullPercentageToBeLessThan(Expectation):
         col = F.col(str(self.column))
         total = df.count()
         null_count = df.filter(col.isNull()).count()
+        pct = (null_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(pct < threshold),
+            observed_value=round(pct, 4),
+            element_count=total,
+            details={'null_count': null_count, 'null_percent': pct, 'threshold_percent': threshold},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        threshold: float = float(self.kwargs.get('threshold', 0))
+        total = len(df)
+        null_count = int(df[self.column].is_null().sum())
         pct = (null_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
@@ -173,6 +224,26 @@ class ExpectColumnCorrelationToBeBetween(Expectation):
             details={'corr_with': other_col, 'min_value': min_val, 'max_value': max_val},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        other_col = self.kwargs.get('other_column')
+        min_val = self.kwargs.get('min_value', -1.0)
+        max_val = self.kwargs.get('max_value', 1.0)
+
+        pair = df.filter(pl.col(self.column).is_not_null() & pl.col(other_col).is_not_null())
+        if len(pair) == 0:
+            return self._build_result(success=False, observed_value=None, element_count=0)
+
+        actual_corr = float(pair.select(pl.corr(self.column, other_col)).to_series()[0])
+        success = min_val <= actual_corr <= max_val
+
+        return self._build_result(
+            success=success,
+            observed_value=round(actual_corr, 6),
+            element_count=len(pair),
+            details={'corr_with': other_col, 'min_value': min_val, 'max_value': max_val},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. expect_column_values_to_have_no_whitespace
@@ -219,6 +290,22 @@ class ExpectColumnValuesToHaveNoWhitespace(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+        unexpected_mask = series != series.str.strip_chars()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
         )
 
 
@@ -274,6 +361,25 @@ class ExpectColumnValuesToBePositive(Expectation):
             details={'allow_zero': allow_zero},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        allow_zero = self.kwargs.get('allow_zero', False)
+        series = df[self.column].drop_nulls()
+        total = len(series)
+
+        unexpected_mask = series < 0 if allow_zero else series <= 0
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+            details={'allow_zero': allow_zero},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 6. expect_column_values_to_be_negative
@@ -324,6 +430,25 @@ class ExpectColumnValuesToBeNegative(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
+            details={'allow_zero': allow_zero},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        allow_zero = self.kwargs.get('allow_zero', False)
+        series = df[self.column].drop_nulls()
+        total = len(series)
+
+        unexpected_mask = series > 0 if allow_zero else series >= 0
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
             details={'allow_zero': allow_zero},
         )
 
@@ -403,4 +528,33 @@ class ExpectColumnValuesToBeInRangeOfStdDevs(Expectation):
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
             details={'n_std_devs': n_std, 'lower_bound': round(lower, 4), 'upper_bound': round(upper, 4)},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        n_std = float(self.kwargs.get('n_std_devs', 3.0))
+        series = df[self.column].drop_nulls()
+        total = len(series)
+
+        mean = float(series.mean())
+        std = float(series.std())
+        lower = mean - n_std * std
+        upper = mean + n_std * std
+
+        unexpected_mask = (series < lower) | (series > upper)
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={'mean': round(float(mean), 4), 'std': round(float(std), 4)},
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+            details={
+                'n_std_devs': n_std,
+                'lower_bound': round(float(lower), 4),
+                'upper_bound': round(float(upper), 4),
+            },
         )

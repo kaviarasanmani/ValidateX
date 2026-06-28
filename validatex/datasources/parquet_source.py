@@ -39,3 +39,7 @@ class ParquetDataSource(DataSource):
         if spark_session is None:
             raise ValueError("A SparkSession is required.")
         return spark_session.read.parquet(self.filepath)
+
+    def load_polars(self) -> Any:
+        import polars as pl
+        return pl.read_parquet(self.filepath, **self.read_options)

@@ -47,10 +47,13 @@ def cli():
 @cli.command()
 @click.option("--data", "-d", required=True, help="Path to data file (CSV, Parquet).")
 @click.option("--suite", "-s", required=True, help="Path to expectation suite (YAML/JSON).")
-@click.option("--engine", "-e", default="pandas", help="Engine: pandas or spark.")
+@click.option("--engine", "-e", default="pandas", help="Engine: pandas, spark, or polars.")
 @click.option("--report", "-r", default=None, help="Output HTML report path.")
 @click.option("--json-report", "-j", default=None, help="Output JSON report path.")
-def validate(data, suite, engine, report, json_report):
+@click.option("--slack-webhook", default=None, help="Slack webhook URL for alerts.")
+@click.option("--teams-webhook", default=None, help="Microsoft Teams webhook URL for alerts.")
+@click.option("--notify-on", default="failure", type=click.Choice(["failure", "always"]), help="Trigger alerts on 'failure' or 'always'.")
+def validate(data, suite, engine, report, json_report, slack_webhook, teams_webhook, notify_on):
     """Validate a dataset against an expectation suite."""
     # Ensure expectations are registered
     import validatex.expectations  # noqa: F401
@@ -91,6 +94,18 @@ def validate(data, suite, engine, report, json_report):
     if json_report:
         result.to_json_file(json_report)
         console.print(f"  📄 JSON report saved: [green]{json_report}[/green]")
+
+    # Webhook alerts
+    import os
+    slack_url = slack_webhook or os.environ.get("VALIDATEX_SLACK_WEBHOOK_URL")
+    if slack_url:
+        result.send_slack(webhook_url=slack_url, notify_on=notify_on)
+        console.print("  🔔 Slack notification sent")
+
+    teams_url = teams_webhook or os.environ.get("VALIDATEX_TEAMS_WEBHOOK_URL")
+    if teams_url:
+        result.send_teams(webhook_url=teams_url, notify_on=notify_on)
+        console.print("  🔔 Teams notification sent")
 
     # Exit code
     sys.exit(0 if result.success else 1)
@@ -137,6 +152,36 @@ def run(checkpoint):
     if report_cfg.get("json"):
         result.to_json_file(report_cfg["json"])
         console.print(f"  📄 JSON: [green]{report_cfg['json']}[/green]")
+
+    # Webhook alerts
+    import os
+    slack_cfg = report_cfg.get("slack")
+    slack_url = None
+    slack_notify_on = "failure"
+    if isinstance(slack_cfg, dict):
+        slack_url = slack_cfg.get("webhook_url")
+        slack_notify_on = slack_cfg.get("notify_on", "failure")
+    elif isinstance(slack_cfg, str):
+        slack_url = slack_cfg
+
+    slack_url = slack_url or os.environ.get("VALIDATEX_SLACK_WEBHOOK_URL")
+    if slack_url:
+        result.send_slack(webhook_url=slack_url, notify_on=slack_notify_on)
+        console.print("  🔔 Slack notification sent")
+
+    teams_cfg = report_cfg.get("teams")
+    teams_url = None
+    teams_notify_on = "failure"
+    if isinstance(teams_cfg, dict):
+        teams_url = teams_cfg.get("webhook_url")
+        teams_notify_on = teams_cfg.get("notify_on", "failure")
+    elif isinstance(teams_cfg, str):
+        teams_url = teams_cfg
+
+    teams_url = teams_url or os.environ.get("VALIDATEX_TEAMS_WEBHOOK_URL")
+    if teams_url:
+        result.send_teams(webhook_url=teams_url, notify_on=teams_notify_on)
+        console.print("  🔔 Teams notification sent")
 
     sys.exit(0 if result.success else 1)
 
@@ -296,9 +341,19 @@ report:
 
 def _load_data_file(filepath: str, engine: str = "pandas"):
     """Auto-detect file type and load."""
-    import pandas as pd
-
     ext = Path(filepath).suffix.lower()
+    if engine.lower() == "polars":
+        import polars as pl
+        if ext == ".csv":
+            return pl.read_csv(filepath)
+        elif ext in (".parquet", ".pq"):
+            return pl.read_parquet(filepath)
+        elif ext in (".json",):
+            return pl.read_json(filepath)
+        else:
+            return pl.read_csv(filepath)
+
+    import pandas as pd
     if ext == ".csv":
         return pd.read_csv(filepath)
     elif ext in (".parquet", ".pq"):

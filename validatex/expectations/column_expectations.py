@@ -43,6 +43,13 @@ class ExpectColumnToExist(Expectation):
             details={"column_exists": exists},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        exists = self.column in df.columns
+        return self._build_result(
+            success=exists,
+            details={"column_exists": exists},
+        )
+
     def _validate_sql(self, sql_source: Any) -> ExpectationResult:
         from sqlalchemy import text
 
@@ -90,6 +97,21 @@ class ExpectColumnToNotBeNull(Expectation):
 
         total = df.count()
         null_count = df.filter(F.col(str(self.column)).isNull()).count()
+        pct = (null_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(null_count == 0),
+            observed_value=null_count,
+            element_count=total,
+            unexpected_count=null_count,
+            unexpected_percent=pct,
+            details={"null_count": null_count, "total_count": total},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col = str(self.column)
+        total = len(df)
+        null_count = int(df[col].is_null().sum())
         pct = (null_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(null_count == 0),
@@ -191,6 +213,24 @@ class ExpectColumnValuesToBeUnique(Expectation):
             details={"duplicate_count": dup_count, "distinct_count": distinct_count},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col = str(self.column)
+        total = len(df)
+        dup_count = int(df[col].is_duplicated().sum())
+        distinct_count = int(df[col].n_unique())
+        pct = (dup_count / total * 100) if total > 0 else 0.0
+        dup_values = df.filter(pl.col(col).is_duplicated())[col].unique().to_list()[:20]
+        return self._build_result(
+            success=(dup_count == 0),
+            observed_value=f"{distinct_count} unique out of {total}",
+            element_count=total,
+            unexpected_count=dup_count,
+            unexpected_percent=pct,
+            unexpected_values=dup_values,
+            details={"duplicate_count": dup_count, "distinct_count": distinct_count},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. expect_column_values_to_be_between
@@ -285,6 +325,50 @@ class ExpectColumnValuesToBeBetween(Expectation):
             details={"min_value": min_val, "max_value": max_val},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col = str(self.column)
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        strict_min = self.kwargs.get("strict_min", False)
+        strict_max = self.kwargs.get("strict_max", False)
+
+        series = df[col].drop_nulls()
+        total = len(series)
+
+        if min_val is not None:
+            mask_low = series <= min_val if strict_min else series < min_val
+        else:
+            mask_low = pl.Series(values=[False] * total, dtype=pl.Boolean)
+
+        if max_val is not None:
+            mask_high = series >= max_val if strict_max else series > max_val
+        else:
+            mask_high = pl.Series(values=[False] * total, dtype=pl.Boolean)
+
+        unexpected_mask = mask_low | mask_high
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = series.filter(unexpected_mask).to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={
+                "min": series.min() if total > 0 else None,
+                "max": series.max() if total > 0 else None,
+            },
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "strict_min": strict_min,
+                "strict_max": strict_max,
+            },
+        )
+
 
 # ---------------------------------------------------------------------------
 # 5. expect_column_values_to_be_in_set
@@ -335,6 +419,26 @@ class ExpectColumnValuesToBeInSet(Expectation):
             details={"value_set": value_set},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        value_set = set(self.kwargs.get("value_set", []))
+        series = df[self.column].drop_nulls()
+        total = len(series)
+        unexpected_mask = ~series.is_in(value_set)
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = series.filter(unexpected_mask).unique().to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={"unique_values": series.n_unique()},
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={"value_set": list(value_set)},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 6. expect_column_values_to_not_be_in_set
@@ -382,6 +486,25 @@ class ExpectColumnValuesToNotBeInSet(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             details={"forbidden_set": forbidden},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        forbidden = set(self.kwargs.get("value_set", []))
+        series = df[self.column].drop_nulls()
+        total = len(series)
+        unexpected_mask = series.is_in(forbidden)
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = series.filter(unexpected_mask).unique().to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={"forbidden_set": list(forbidden)},
         )
 
 
@@ -434,6 +557,26 @@ class ExpectColumnValuesToMatchRegex(Expectation):
             details={"regex": regex},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        regex = self.kwargs.get("regex", ".*")
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+        pattern = re.compile(regex)
+        match_mask = series.map_elements(lambda x: bool(pattern.search(x)), return_dtype=pl.Boolean)
+        unexpected_count = int((~match_mask).sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = series.filter(~match_mask).to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={"regex": regex},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 8. expect_column_values_to_be_of_type
@@ -460,6 +603,16 @@ class ExpectColumnValuesToBeOfType(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         expected_type = self.kwargs.get("expected_type", "")
         actual_type = str(df.schema[self.column].dataType)
+        success = expected_type.lower() in actual_type.lower()
+        return self._build_result(
+            success=success,
+            observed_value=actual_type,
+            details={"expected_type": expected_type, "actual_type": actual_type},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        expected_type = self.kwargs.get("expected_type", "")
+        actual_type = str(df[self.column].dtype)
         success = expected_type.lower() in actual_type.lower()
         return self._build_result(
             success=success,
@@ -495,6 +648,34 @@ class ExpectColumnValuesToBeDateutilParseable(Expectation):
             unexpected_percent=pct,
             unexpected_values=bad_vals,
             details={"unparseable_count": null_after},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls()
+        total = len(series)
+
+        def check_date(x):
+            try:
+                import dateutil.parser
+                dateutil.parser.parse(str(x))
+                return True
+            except Exception:
+                return False
+
+        parsed_mask = series.map_elements(check_date, return_dtype=pl.Boolean)
+        unexpected_mask = parsed_mask.not_()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        bad_vals = series.filter(unexpected_mask).to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=bad_vals,
+            details={"unparseable_count": unexpected_count},
         )
 
 
@@ -554,6 +735,31 @@ class ExpectColumnValueLengthsToBeBetween(Expectation):
             details={"min_value": min_len, "max_value": max_len},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        min_len = self.kwargs.get("min_value", 0)
+        max_len = self.kwargs.get("max_value", float("inf"))
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+        lengths = series.str.len_chars()
+        unexpected_mask = (lengths < min_len) | (lengths > max_len)
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = series.filter(unexpected_mask).to_list()[:20]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={
+                "min_length": int(lengths.min()) if total > 0 else None,
+                "max_length": int(lengths.max()) if total > 0 else None,
+            },
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={"min_value": min_len, "max_value": max_len},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 11. expect_column_max_to_be_between
@@ -603,6 +809,27 @@ class ExpectColumnMaxToBeBetween(Expectation):
             details={"min_value": min_val, "max_value": max_val, "column_max": col_max},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        val = df[self.column].max()
+        col_max = float(val) if val is not None else None
+
+        success = True
+        if col_max is None:
+            success = False
+        else:
+            if min_val is not None and col_max < min_val:
+                success = False
+            if max_val is not None and col_max > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=col_max,
+            details={"min_value": min_val, "max_value": max_val, "column_max": col_max},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 12. expect_column_min_to_be_between
@@ -645,6 +872,27 @@ class ExpectColumnMinToBeBetween(Expectation):
             success = False
         if max_val is not None and col_min > max_val:
             success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=col_min,
+            details={"min_value": min_val, "max_value": max_val, "column_min": col_min},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        val = df[self.column].min()
+        col_min = float(val) if val is not None else None
+
+        success = True
+        if col_min is None:
+            success = False
+        else:
+            if min_val is not None and col_min < min_val:
+                success = False
+            if max_val is not None and col_min > max_val:
+                success = False
 
         return self._build_result(
             success=success,
@@ -705,6 +953,31 @@ class ExpectColumnMeanToBeBetween(Expectation):
             details={"min_value": min_val, "max_value": max_val},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        val = df[self.column].mean()
+        col_mean = float(val) if val is not None else None
+
+        success = True
+        if col_mean is None:
+            success = False
+        else:
+            if min_val is not None and col_mean < min_val:
+                success = False
+            if max_val is not None and col_mean > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=round(col_mean, 4) if col_mean is not None else None,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_mean": round(col_mean, 4) if col_mean is not None else None,
+            },
+        )
+
 
 # ---------------------------------------------------------------------------
 # 14. expect_column_stdev_to_be_between
@@ -736,6 +1009,31 @@ class ExpectColumnStdevToBeBetween(Expectation):
                 "min_value": min_val,
                 "max_value": max_val,
                 "column_stdev": round(col_std, 4),
+            },
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        val = df[self.column].std()
+        col_std = float(val) if val is not None else None
+
+        success = True
+        if col_std is None:
+            success = False
+        else:
+            if min_val is not None and col_std < min_val:
+                success = False
+            if max_val is not None and col_std > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=round(col_std, 4) if col_std is not None else None,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_stdev": round(col_std, 4) if col_std is not None else None,
             },
         )
 
@@ -784,6 +1082,23 @@ class ExpectColumnDistinctValuesToBeInSet(Expectation):
             details={"value_set": list(value_set)},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        value_set = set(self.kwargs.get("value_set", []))
+        actual_values = set(df[self.column].drop_nulls().unique().to_list())
+        unexpected = actual_values - value_set
+        total_distinct = len(actual_values)
+
+        return self._build_result(
+            success=(len(unexpected) == 0),
+            observed_value={"distinct_values": list(actual_values)[:20]},
+            element_count=total_distinct,
+            unexpected_count=len(unexpected),
+            unexpected_percent=((len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0),
+            unexpected_values=list(unexpected)[:20],
+            details={"value_set": list(value_set)},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 16. expect_column_proportion_of_unique_values_to_be_between
@@ -806,6 +1121,29 @@ class ExpectColumnProportionOfUniqueValuesToBeBetween(Expectation):
         series = df[self.column].dropna()
         total = len(series)
         unique_count = series.nunique()
+        proportion = (unique_count / total) if total > 0 else 0.0
+
+        success = min_val <= proportion <= max_val
+
+        return self._build_result(
+            success=success,
+            observed_value=round(proportion, 4),
+            element_count=total,
+            details={
+                "unique_count": unique_count,
+                "total_count": total,
+                "proportion": round(proportion, 4),
+                "min_value": min_val,
+                "max_value": max_val,
+            },
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value", 0.0)
+        max_val = self.kwargs.get("max_value", 1.0)
+        series = df[self.column].drop_nulls()
+        total = len(series)
+        unique_count = series.n_unique()
         proportion = (unique_count / total) if total > 0 else 0.0
 
         success = min_val <= proportion <= max_val
