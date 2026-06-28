@@ -7,7 +7,7 @@
     <!-- Build & Tests -->
     <a href="https://github.com/kaviarasanmani/ValidateX/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status (Tests & CI)"></a>
     <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Code Coverage">
-    <img src="https://img.shields.io/badge/tests-114%20passed-brightgreen" alt="Test Passing Rate">
+    <img src="https://img.shields.io/badge/tests-128%20passed-brightgreen" alt="Test Passing Rate">
     <!-- Package & Language -->
     <a href="https://pypi.org/project/validatex/"><img src="https://img.shields.io/pypi/v/validatex.svg" alt="PyPI Latest Version"></a>
     <img src="https://img.shields.io/badge/python-3.9+-blue?logo=python&logoColor=white" alt="Supported Python Versions">
@@ -20,7 +20,7 @@
   </p>
 </p>
 
-ValidateX provides a comprehensive suite of tools for validating, profiling, and monitoring data quality across **Pandas** and **PySpark** DataFrames. Inspired by Great Expectations, it offers a simpler, more focused approach with modern, production-ready HTML reports and an intuitive API.
+ValidateX provides a comprehensive suite of tools for validating, profiling, and monitoring data quality across **Pandas**, **Polars**, and **PySpark** DataFrames, as well as **Push-Down SQL** engines. Inspired by Great Expectations, it offers a simpler, more focused approach with modern, production-ready HTML reports and an intuitive API.
 
 ## 📑 Table of Contents
 - [🖼️ Report Preview](#️-report-preview)
@@ -63,15 +63,16 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 |---|---|---|
 | **Setup** | `pip install` → validate in 5 lines | Multi-step setup with contexts & stores |
 | **API** | Fluent, chainable Python API | Heavy config system |
-| **Execution Engines** | Pandas, PySpark, **Native SQL Pushdown** | Pandas, PySpark, SQL |
+| **Execution Engines** | Pandas, Polars, PySpark, **Native SQL Pushdown** | Pandas, PySpark, SQL |
 | **Severity levels** | ✔ (Critical, Warning, Info) | ❌ |
 | **Quality score** | ✔ (Weighted 0–100) | ❌ |
 | **Data Drift (PSI)** | ✔ (Built-in via `validatex.drift`) | Separate plugins |
 | **Airflow Operator** | ✔ (`ValidateXOperator` built-in) | External provider package |
+| **Slack & Teams Alerts** | ✔ (Built-in Webhook Alerts) | Complex Notification Webhooks |
 | **Auto-suggest** | ✔ | ✔ |
 | **Reports** | Modern dark-theme HTML with minicharts | Basic data docs |
 | **PySpark Support** | ✔ | ✔ |
-| **Polars Support** | Soon | ✔ |
+| **Polars Support** | ✔ | ✔ |
 | **CI/CD friendly CLI** | ✔ | ❌ |
 | **Downloads** | JSON / CSV / clipboard built into report | Separate export |
 | **Learning curve** | Minutes | Hours to days |
@@ -97,7 +98,8 @@ ValidateX is not a replacement for Great Expectations — it's a **focused alter
 |---------|-------------|
 | **50+ Built-in Expectations** | Column-level, table-level, format, statistical, and sequential cross-validations |
 | **Push-Down SQL Native** | Execute core validation via SQLAlchemy directly on Postgres, Snowflake, or BigQuery |
-| **Triple Engine Support** | Pandas, PySpark, and SQL execution engines |
+| **Quad-Engine Support** | Pandas, Polars, PySpark, and SQL execution engines |
+| **🔔 Webhook Alerting** | Built-in Slack (Block Kit) and Microsoft Teams (MessageCard) notifications |
 | **🎯 Data Quality Score** | Weighted score (0–100) based on severity of checks |
 | **🔴🟡🔵 Severity Levels** | Critical / Warning / Info classification for every expectation |
 | **📊 Column Health Summary** | At-a-glance per-column health with mini bar charts |
@@ -282,6 +284,29 @@ validate_data = ValidateXOperator(
     min_score=95.0, 
     report_path="/tmp/validatex_daily_report.html"
 )
+```
+
+---
+
+## 🔔 Slack & Teams Webhook Alerts
+
+Send real-time notifications to engineering channels whenever validations run or data quality thresholds fail.
+
+```python
+import validatex as vx
+
+result = vx.validate(df, suite)
+
+# Send Slack alert (Block Kit format)
+result.send_slack(webhook_url="https://hooks.slack.com/services/...", notify_on="failure")
+
+# Send Teams alert (MessageCard format)
+result.send_teams(webhook_url="https://outlook.office.com/webhook/...", notify_on="failure")
+```
+
+Or trigger alerts automatically via the CLI:
+```bash
+validatex validate --data data.csv --suite suite.yaml --slack-webhook $SLACK_URL --notify-on failure
 ```
 
 ---
@@ -605,9 +630,9 @@ data = result.to_dict()
 - [x] CLI with validate, profile, run, init commands
 - [x] YAML/JSON declarative configuration
 - [x] Native Python type sanitization
-- [ ] Slack / Teams notifications on failure
-- [ ] GitHub Action template for CI/CD
-- [ ] Polars engine support
+- [x] Slack / Teams notifications on failure
+- [x] GitHub Action template for CI/CD
+- [x] Polars engine support
 - [ ] Baseline history tracking & trend charts
 - [ ] Great Expectations suite import/migration
 - [ ] Web dashboard for multi-dataset monitoring
