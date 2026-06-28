@@ -61,6 +61,35 @@ class ExpectColumnValuesToBeIncreasing(Expectation):
             details={"strictly_increasing": strictly},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        strictly = self.kwargs.get("strictly", False)
+        series = df[self.column].drop_nulls()
+        total = len(series)
+
+        if total < 2:
+            return self._build_result(success=True, element_count=total)
+
+        diffs = series.diff()
+        if strictly:
+            unexpected_mask = (diffs <= 0).fill_null(False)
+        else:
+            unexpected_mask = (diffs < 0).fill_null(False)
+
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_values = series.filter(unexpected_mask).to_list()[:10]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value=f"{total - unexpected_count} ordered elements",
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_values,
+            details={"strictly_increasing": strictly},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 2. expect_column_values_to_be_decreasing
@@ -95,6 +124,35 @@ class ExpectColumnValuesToBeDecreasing(Expectation):
 
         violation_indices = unexpected_mask[unexpected_mask].index
         unexpected_values = series.loc[violation_indices].tolist()[:10]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value=f"{total - unexpected_count} ordered elements",
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_values,
+            details={"strictly_decreasing": strictly},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        strictly = self.kwargs.get("strictly", False)
+        series = df[self.column].drop_nulls()
+        total = len(series)
+
+        if total < 2:
+            return self._build_result(success=True, element_count=total)
+
+        diffs = series.diff()
+        if strictly:
+            unexpected_mask = (diffs >= 0).fill_null(False)
+        else:
+            unexpected_mask = (diffs > 0).fill_null(False)
+
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_values = series.filter(unexpected_mask).to_list()[:10]
 
         return self._build_result(
             success=(unexpected_count == 0),

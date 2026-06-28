@@ -72,6 +72,26 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
             details={"regex": regex},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        regex = self.kwargs.get("regex", "")
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+
+        pattern = re.compile(regex)
+        unexpected_mask = series.map_elements(lambda x: bool(pattern.search(x)), return_dtype=pl.Boolean)
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+            details={"regex": regex},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 2. expect_column_values_to_be_valid_email
@@ -126,6 +146,23 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+        pattern = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$")
+        unexpected_mask = series.map_elements(lambda x: not bool(pattern.match(x)), return_dtype=pl.Boolean)
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
         )
 
 
@@ -198,6 +235,31 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
             unexpected_values=unexpected_vals,
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+
+        def is_json(val: str) -> bool:
+            try:
+                json.loads(val)
+                return True
+            except (ValueError, TypeError):
+                return False
+
+        expected_mask = series.map_elements(is_json, return_dtype=pl.Boolean)
+        unexpected_mask = expected_mask.not_()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. expect_column_sum_to_be_between
@@ -245,6 +307,30 @@ class ExpectColumnSumToBeBetween(Expectation):
 
         row = filtered.select(F.sum(str(self.column)).alias("total_sum")).collect()[0]
         actual_sum = float(row["total_sum"]) if row["total_sum"] is not None else 0.0
+
+        success = True
+        if min_val is not None:
+            success = success and (actual_sum >= min_val)
+        if max_val is not None:
+            success = success and (actual_sum <= max_val)
+
+        return self._build_result(
+            success=success,
+            observed_value=actual_sum,
+            element_count=total_rows,
+            details={"min_value": min_val, "max_value": max_val, "actual_sum": actual_sum},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+
+        series = df[self.column].drop_nulls()
+        total_rows = len(series)
+        if total_rows == 0:
+            return self._build_result(success=True, element_count=0)
+
+        actual_sum = float(series.sum())
 
         success = True
         if min_val is not None:
@@ -321,6 +407,30 @@ class ExpectColumnMedianToBeBetween(Expectation):
             details={"min_value": min_val, "max_value": max_val, "actual_median": actual_median},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+
+        series = df[self.column].drop_nulls()
+        total_rows = len(series)
+        if total_rows == 0:
+            return self._build_result(success=True, element_count=0)
+
+        actual_median = float(series.median())
+
+        success = True
+        if min_val is not None:
+            success = success and (actual_median >= min_val)
+        if max_val is not None:
+            success = success and (actual_median <= max_val)
+
+        return self._build_result(
+            success=success,
+            observed_value=actual_median,
+            element_count=total_rows,
+            details={"min_value": min_val, "max_value": max_val, "actual_median": actual_median},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 6. expect_column_value_lengths_to_equal
@@ -380,5 +490,28 @@ class ExpectColumnValueLengthsToEqual(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
+            details={"expected_length": value},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        value = self.kwargs.get("value")
+        if value is None:
+            raise ValueError("Missing 'value' argument")
+
+        series = df[self.column].drop_nulls().cast(pl.String)
+        total = len(series)
+
+        lengths = series.str.len_chars()
+        unexpected_mask = lengths != value
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
             details={"expected_length": value},
         )

@@ -89,6 +89,34 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
             details={"column_a": col_a, "column_b": col_b, "or_equal": or_equal},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col_a = str(self.kwargs.get("column_a", self.column))
+        col_b = str(self.kwargs.get("column_b"))
+        or_equal = self.kwargs.get("or_equal", False)
+
+        if col_b is None:
+            raise ValueError("column_b is required")
+
+        valid = df.filter(pl.col(col_a).is_not_null() & pl.col(col_b).is_not_null())
+        total = len(valid)
+
+        if or_equal:
+            unexpected = valid.filter(pl.col(col_a) < pl.col(col_b))
+        else:
+            unexpected = valid.filter(pl.col(col_a) <= pl.col(col_b))
+
+        unexpected_count = len(unexpected)
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"column_a": col_a, "column_b": col_b, "or_equal": or_equal},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 2. expect_column_pair_values_to_be_equal
@@ -145,6 +173,28 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
             details={"column_a": col_a, "column_b": col_b},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        col_a = str(self.kwargs.get("column_a", self.column))
+        col_b = str(self.kwargs.get("column_b"))
+
+        if col_b is None:
+            raise ValueError("column_b is required")
+
+        valid = df.filter(pl.col(col_a).is_not_null() & pl.col(col_b).is_not_null())
+        total = len(valid)
+        unexpected = valid.filter(pl.col(col_a) != pl.col(col_b))
+        unexpected_count = len(unexpected)
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"column_a": col_a, "column_b": col_b},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 3. expect_multicolumn_sum_to_equal
@@ -169,6 +219,30 @@ class ExpectMulticolumnSumToEqual(Expectation):
         total = len(row_sums)
         unexpected_mask = row_sums != target
         unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={
+                "column_list": columns,
+                "expected_sum": target,
+            },
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        columns = self.kwargs.get("column_list", [])
+        target = self.kwargs.get("sum_total")
+
+        if not columns:
+            raise ValueError("column_list is required")
+
+        row_sums = df.select(pl.sum_horizontal([pl.col(c).fill_null(0) for c in columns])).to_series()
+        total = len(df)
+        unexpected_count = int((row_sums != target).sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
@@ -229,6 +303,25 @@ class ExpectCompoundColumnsToBeUnique(Expectation):
         return self._build_result(
             success=(dup_count == 0),
             observed_value=f"{distinct_count} unique compound keys out of {total}",
+            element_count=total,
+            unexpected_count=dup_count,
+            unexpected_percent=pct,
+            details={"column_list": columns, "duplicate_count": dup_count},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        columns = self.kwargs.get("column_list", [])
+        if not columns:
+            raise ValueError("column_list is required")
+
+        total = len(df)
+        dup_mask = df.select(columns).is_duplicated()
+        dup_count = int(dup_mask.sum())
+        pct = (dup_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(dup_count == 0),
+            observed_value=f"{total - dup_count} unique compound keys out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,

@@ -32,9 +32,11 @@ setup(
     extras_require={
         "spark": ["pyspark>=3.0.0"],
         "database": ["sqlalchemy>=1.4.0"],
+        "polars": ["polars>=0.20.0"],
         "all": [
             "pyspark>=3.0.0",
             "sqlalchemy>=1.4.0",
+            "polars>=0.20.0",
         ],
         "dev": [
             "pytest>=7.0",

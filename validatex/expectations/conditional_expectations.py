@@ -9,7 +9,7 @@ Python lambda expectations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 import pandas as pd
 
@@ -63,6 +63,32 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
             details={"condition": f"{cond_col} {when} {cond_val!r}"},
         )
 
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        cond_col = self.kwargs.get("condition_column")
+        cond_val = self.kwargs.get("condition_value")
+        when = self.kwargs.get("when", "equal")
+
+        if when == "equal":
+            condition_mask = df[cond_col] == cond_val
+        else:
+            condition_mask = df[cond_col] != cond_val
+
+        scoped = df.filter(condition_mask)
+        total = len(scoped)
+        unexpected_mask = scoped[self.column].is_not_null()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=scoped[self.column].filter(unexpected_mask).to_list()[:20],
+            details={"condition": f"{cond_col} {when} {cond_val!r}"},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 2. expect_column_values_to_be_not_null_when (conditional not-null)
@@ -98,6 +124,31 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
         scoped = df[condition_mask]
         total = len(scoped)
         unexpected_mask = scoped[self.column].isnull()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"condition": f"{cond_col} {when} {cond_val!r}"},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        cond_col = self.kwargs.get("condition_column")
+        cond_val = self.kwargs.get("condition_value")
+        when = self.kwargs.get("when", "equal")
+
+        if when == "equal":
+            condition_mask = df[cond_col] == cond_val
+        else:
+            condition_mask = df[cond_col] != cond_val
+
+        scoped = df.filter(condition_mask)
+        total = len(scoped)
+        unexpected_mask = scoped[self.column].is_null()
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
@@ -157,5 +208,31 @@ class ExpectColumnValuesToSatisfy(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=series[unexpected_mask].tolist()[:20],
+            details={"condition": str(condition)},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+        condition: Optional[Callable] = self.kwargs.get("condition")
+        if condition is None:
+            raise ValueError("You must pass a 'condition' callable to " "ExpectColumnValuesToSatisfy.")
+
+        series = df[self.column].drop_nulls()
+        total = len(series)
+        try:
+            result_mask = series.map_elements(condition, return_dtype=pl.Boolean)
+        except Exception as e:
+            raise ValueError(f"Your condition raised an error: {e}")
+
+        unexpected_mask = result_mask.not_()
+        unexpected_count = int(unexpected_mask.sum())
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=series.filter(unexpected_mask).to_list()[:20],
             details={"condition": str(condition)},
         )
