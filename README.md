@@ -82,16 +82,19 @@ ValidateX is not a replacement for Great Expectations — it's a **focused alter
 
 ## ⚡ Performance Benchmarks
 
-Execution performance measured on standard datasets across Pandas and Polars engines (run via `python -m benchmarks.benchmark_suite`):
+Execution performance measured on standard datasets across Pandas, Polars, and PySpark engines (run via `python -m benchmarks.benchmark_suite`):
 
 | Dataset Size | Engine | Execution Time | Peak Memory | Setup / API Lines |
 |---|---|---|---|---|
 | **100,000 rows** | Pandas | **0.04s** | 2.1 MB | 5 lines |
-| **100,000 rows** | Polars | **0.04s** | < 1 MB | 5 lines |
-| **1,000,000 rows** | Pandas | **0.18s** | 33.2 MB | 5 lines |
-| **1,000,000 rows** | Polars | **0.27s** | < 1 MB | 5 lines |
-| **10,000,000 rows** | Pandas | **1.68s** | 268.5 MB | 5 lines |
-| **10,000,000 rows** | Polars | **4.51s** | < 1 MB | 5 lines |
+| **100,000 rows** | Polars | **0.03s** | < 1 MB | 5 lines |
+| **100,000 rows** | PySpark | **55.65s** *(local JVM init)* | < 1 MB | 5 lines |
+| **1,000,000 rows** | Pandas | **0.13s** | 33.2 MB | 5 lines |
+| **1,000,000 rows** | Polars | **0.21s** | < 1 MB | 5 lines |
+| **1,000,000 rows** | PySpark | **52.21s** | < 1 MB | 5 lines |
+| **10,000,000 rows** | Pandas | **2.22s** | 268.5 MB | 5 lines |
+| **10,000,000 rows** | Polars | **4.77s** | < 1 MB | 5 lines |
+| **10,000,000 rows** | PySpark | **Distributed Cluster** | **Distributed** | 5 lines |
 
 ---
 

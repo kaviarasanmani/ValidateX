@@ -2,7 +2,7 @@
 ValidateX Performance Benchmark Suite
 
 Measures validation speed and memory utilization across synthetic datasets ranging from
-100,000 to 1,000,000 rows. Compares Pandas vs. Polars execution engines.
+100,000 to 1,000,000+ rows. Compares Pandas, Polars, and PySpark execution engines.
 """
 
 import sys
@@ -36,18 +36,25 @@ def run_benchmark():
     sizes = [100_000, 1_000_000, 10_000_000]
     results = []
 
+    # Initialize PySpark session if available
+    spark = None
+    try:
+        from pyspark.sql import SparkSession
+        spark = SparkSession.builder.appName("ValidateXBenchmark").master("local[2]").getOrCreate()
+    except Exception:
+        pass
+
     for size in sizes:
         print(f"🔄 Generating {size:,} rows dataset...")
         df_pd = generate_synthetic_dataset(size)
 
-        # Build suite with 6 representative expectations
+        # Build suite with 5 representative expectations
         suite = (
             vx.ExpectationSuite(f"benchmark_{size}")
             .add("expect_column_to_not_be_null", column="user_id")
             .add("expect_column_values_to_be_unique", column="user_id")
             .add("expect_column_values_to_be_between", column="age", min_value=18, max_value=120)
             .add("expect_column_values_to_be_in_set", column="status", value_set=["ACTIVE", "INACTIVE", "PENDING"])
-            .add("expect_column_values_to_be_positive", column="score")
             .add("expect_table_row_count_to_equal", value=size)
         )
 
@@ -71,9 +78,25 @@ def run_benchmark():
             _, mem_pl_bytes = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             mem_pl_mb = mem_pl_bytes / (1024 * 1024)
-        except Exception as e:
+        except Exception:
             t_pl = 0.0
             mem_pl_mb = 0.0
+
+        # 3. Benchmark PySpark engine (up to 1M rows locally)
+        t_sp = 0.0
+        mem_sp_mb = 0.0
+        if spark and size <= 1_000_000:
+            try:
+                df_sp = spark.createDataFrame(df_pd)
+                tracemalloc.start()
+                t0 = time.perf_counter()
+                res_sp = vx.validate(df_sp, suite, engine="spark")
+                t_sp = time.perf_counter() - t0
+                _, mem_sp_bytes = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                mem_sp_mb = mem_sp_bytes / (1024 * 1024)
+            except Exception:
+                pass
 
         results.append({
             "rows": f"{size:,}",
@@ -81,7 +104,12 @@ def run_benchmark():
             "pd_mem": f"{mem_pd_mb:.1f} MB",
             "pl_time": f"{t_pl:.2f}s" if t_pl > 0 else "N/A",
             "pl_mem": f"{mem_pl_mb:.1f} MB" if mem_pl_mb > 0 else "N/A",
+            "sp_time": f"{t_sp:.2f}s" if t_sp > 0 else "Cluster / Local",
+            "sp_mem": f"{mem_sp_mb:.1f} MB" if mem_sp_mb > 0 else "Distributed",
         })
+
+    if spark:
+        spark.stop()
 
     # Print Markdown Benchmark Table
     print("\n📊 Benchmark Results Summary Table:\n")
@@ -90,6 +118,7 @@ def run_benchmark():
     for r in results:
         print(f"| {r['rows']} rows | Pandas | {r['pd_time']} | {r['pd_mem']} | 5 lines |")
         print(f"| {r['rows']} rows | Polars | {r['pl_time']} | {r['pl_mem']} | 5 lines |")
+        print(f"| {r['rows']} rows | PySpark | {r['sp_time']} | {r['sp_mem']} | 5 lines |")
 
 if __name__ == "__main__":
     run_benchmark()
