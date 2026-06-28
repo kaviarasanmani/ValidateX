@@ -220,7 +220,10 @@ class ExpectColumnValuesToSatisfy(Expectation):
         series = df[self.column].drop_nulls()
         total = len(series)
         try:
-            result_mask = series.map_elements(condition, return_dtype=pl.Boolean)
+            if hasattr(series, "map_elements"):
+                result_mask = series.map_elements(condition, return_dtype=pl.Boolean)
+            else:
+                result_mask = series.apply(condition, return_dtype=pl.Boolean)
         except Exception as e:
             raise ValueError(f"Your condition raised an error: {e}")
 

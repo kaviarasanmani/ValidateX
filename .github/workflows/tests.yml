@@ -25,7 +25,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev,database,polars]" pyarrow
+        pip install numpy sqlalchemy polars pyarrow
+        pip install -e ".[dev,database,polars]"
 
     - name: Test with pytest (excluding PySpark tests)
       run: |
