@@ -40,6 +40,11 @@ class HTMLReportGenerator:
     """Generate a beautiful standalone HTML report from a ValidationResult."""
 
     def generate(self, result: "ValidationResult", filepath: str) -> None:
+        import os
+
+        dirname = os.path.dirname(filepath)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         result.compute_statistics()
         html_content = self._render(result)
         with open(filepath, "w", encoding="utf-8") as f:

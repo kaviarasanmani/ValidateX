@@ -432,11 +432,21 @@ class ValidationResult:
 
     def to_json_file(self, filepath: str) -> None:
         """Write the validation result to a JSON file."""
+        import os
+
+        dirname = os.path.dirname(filepath)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(self.to_json())
 
     def to_html(self, filepath: str) -> None:
         """Generate a rich HTML report and write to *filepath*."""
+        import os
+
+        dirname = os.path.dirname(filepath)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         from validatex.reporting.html_report import HTMLReportGenerator
 
         generator = HTMLReportGenerator()
