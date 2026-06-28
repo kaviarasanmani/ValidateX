@@ -32,16 +32,16 @@ runs:
         python -m pip install --upgrade pip
         if [ "${{ inputs.engine }}" = "spark" ]; then
           echo "Installing ValidateX with Spark support..."
-          pip install ".[spark]"
+          pip install ".[spark]" pyarrow
         else
           echo "Installing ValidateX..."
-          pip install .
+          pip install . pyarrow
         fi
 
     - name: Run ValidateX Data Quality Validation
       shell: bash
       run: |
-        CMD="validatex validate --data \"${{ inputs.data-path }}\" --suite \"${{ inputs.suite-path }}\" --engine \"${{ inputs.engine }}\""
+        CMD="python -m validatex.cli.main validate --data \"${{ inputs.data-path }}\" --suite \"${{ inputs.suite-path }}\" --engine \"${{ inputs.engine }}\""
         if [ -n "${{ inputs.report-path }}" ]; then
           CMD="$CMD --report \"${{ inputs.report-path }}\""
         fi
