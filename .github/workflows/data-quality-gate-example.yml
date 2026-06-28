@@ -22,8 +22,8 @@ jobs:
       - name: Run Data Quality Gate
         uses: kaviarasanmani/ValidateX@main
         with:
-          data-path: 'validatex/core/expectation.py' # Placeholder data file for testing
-          suite-path: 'suites/sample_suite.yaml'
+          data-path: 'examples/sample_users.csv'
+          suite-path: 'examples/sample_suite.yaml'
           report-path: 'reports/validation_report.html'
           json-report-path: 'reports/validation_report.json'
 

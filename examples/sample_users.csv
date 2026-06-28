@@ -1,0 +1,4 @@
+user_id,username,email,age,status,signup_date
+1,alice,alice@example.com,25,active,2026-01-01
+2,bob,bob@example.com,30,inactive,2026-01-02
+3,charlie,charlie@example.com,35,pending,2026-01-03

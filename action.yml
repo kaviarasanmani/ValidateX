@@ -32,10 +32,10 @@ runs:
         python -m pip install --upgrade pip
         if [ "${{ inputs.engine }}" = "spark" ]; then
           echo "Installing ValidateX with Spark support..."
-          pip install "validatex[spark]"
+          pip install ".[spark]"
         else
           echo "Installing ValidateX..."
-          pip install validatex
+          pip install .
         fi
 
     - name: Run ValidateX Data Quality Validation
