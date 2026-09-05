@@ -1,4 +1,5 @@
 <p align="center">
+  ⭐ If ValidateX solves a real problem for you, a star helps others discover it too — takes 2 seconds.
   <h1 align="center">🚀 ValidateX</h1>
   <p align="center">
     <strong>A powerful, extensible data quality validation framework for Python.</strong>
@@ -700,7 +701,7 @@ MIT License
 ---
 
 <p align="center">
-  <strong>Built with ❤️ by the ValidateX Team</strong>
+  <strong>Built with ❤️ by Kaviarasan </strong>
   <br>
   <sub>If this project helps you, consider giving it a ⭐</sub>
 </p>
