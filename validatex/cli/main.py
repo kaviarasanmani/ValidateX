@@ -349,6 +349,182 @@ report:
     )
 
 
+# ── contract ──────────────────────────────────────────────────────────────
+
+
+@cli.group()
+def contract():
+    """Create, validate, compare and publish data contracts."""
+
+
+@contract.command("lint")
+@click.argument("path")
+def contract_lint(path):
+    """Check a contract file for definition errors (unknown rules, bad types, ...)."""
+    import validatex.expectations  # noqa: F401
+    from validatex.contracts import ContractError, DataContract
+
+    try:
+        dc = DataContract.load(path)
+    except ContractError as exc:
+        console.print(f"[bold red]✗[/bold red] {exc}")
+        sys.exit(1)
+    problems = dc.validate_definition()
+    if problems:
+        console.print(f"[bold red]✗ {dc.name} v{dc.version} has {len(problems)} problem(s):[/bold red]")
+        for p in problems:
+            console.print(f"   - {p}")
+        sys.exit(1)
+    console.print(
+        f"[bold green]✓[/bold green] {dc.name} v{dc.version} is valid "
+        f"({len(dc.schema)} fields, {len(dc.quality_rules)} rules)"
+    )
+
+
+@contract.command("validate")
+@click.option("--contract", "-c", "contract_path", required=True, help="Path to the contract (YAML/JSON).")
+@click.option("--data", "-d", required=True, help="Path to data file (CSV, Parquet).")
+@click.option("--engine", "-e", default="pandas", help="Engine: pandas or polars.")
+@click.option("--report", "-r", default=None, help="Output HTML report path.")
+@click.option("--json-report", "-j", default=None, help="Output JSON report path.")
+@click.option("--store", default=None, help="SQLite file to record this run for historical monitoring.")
+@click.option("--run-name", default=None, help="Label stored with the run.")
+def contract_validate(contract_path, data, engine, report, json_report, store, run_name):
+    """Validate a dataset against a data contract (exit code 1 when the contract is violated)."""
+    import validatex.expectations  # noqa: F401
+    from validatex.contracts import ContractError, DataContract, validate_contract
+
+    try:
+        dc = DataContract.load(contract_path)
+        df = _load_data_file(data, engine)
+        result = validate_contract(
+            df, dc, engine=engine, data_source=data, store=store, run_name=run_name, dataset_name=dc.name
+        )
+    except ContractError as exc:
+        console.print(f"[bold red]✗[/bold red] {exc}")
+        sys.exit(2)
+    console.print(result.summary())
+    if report:
+        result.to_html(report)
+        console.print(f"  📊 HTML report saved: [green]{report}[/green]")
+    if json_report:
+        result.to_json_file(json_report)
+        console.print(f"  📄 JSON report saved: [green]{json_report}[/green]")
+    sys.exit(0 if result.success else 1)
+
+
+@contract.command("diff")
+@click.argument("old")
+@click.argument("new")
+@click.option("--format", "fmt", type=click.Choice(["text", "json", "markdown"]), default="text")
+@click.option("--fail-on-breaking", is_flag=True, help="Exit 1 if any breaking change is found.")
+@click.option("--check-version", is_flag=True, help="Exit 1 if the version bump is smaller than the changes require.")
+def contract_diff(old, new, fmt, fail_on_breaking, check_version):
+    """Compare two contract files and list breaking / non-breaking changes."""
+    import json as _json
+
+    import validatex.expectations  # noqa: F401
+    from validatex.contracts import ContractError, DataContract, compare_contracts
+
+    try:
+        diff = compare_contracts(DataContract.load(old), DataContract.load(new))
+    except ContractError as exc:
+        console.print(f"[bold red]✗[/bold red] {exc}")
+        sys.exit(2)
+    if fmt == "json":
+        click.echo(_json.dumps(diff.to_dict(), indent=2, default=str))
+    elif fmt == "markdown":
+        click.echo(diff.to_markdown())
+    else:
+        click.echo(diff.summary())
+    if (fail_on_breaking and diff.has_breaking_changes) or (check_version and not diff.version_ok):
+        sys.exit(1)
+
+
+@contract.command("register")
+@click.argument("path")
+@click.option("--registry", "-r", default="contracts", help="Registry directory (commit it to git).")
+@click.option("--no-semver-check", is_flag=True, help="Skip semantic-version enforcement.")
+def contract_register(path, registry, no_semver_check):
+    """Publish a contract version into a registry directory."""
+    import validatex.expectations  # noqa: F401
+    from validatex.contracts import ContractError, ContractRegistry, DataContract
+
+    try:
+        dc = DataContract.load(path)
+        target = ContractRegistry(registry).register(dc, enforce_semver=not no_semver_check)
+    except ContractError as exc:
+        console.print(f"[bold red]✗[/bold red] {exc}")
+        sys.exit(1)
+    console.print(f"[bold green]✓[/bold green] Registered {dc.name} v{dc.version} -> {target}")
+
+
+# ── history ───────────────────────────────────────────────────────────────
+
+
+@cli.command()
+@click.option("--store", "-s", default=None, help="RunStore SQLite file (default ./.validatex/runs.db).")
+@click.option("--dataset", "-d", default=None, help="Filter by dataset name.")
+@click.option("--limit", "-n", default=20, show_default=True, help="Number of runs to consider.")
+@click.option("--failures", is_flag=True, help="Show the most frequently failing expectations.")
+@click.option("--schema", "show_schema", is_flag=True, help="Show schema change history (needs --dataset).")
+def history(store, dataset, limit, failures, show_schema):
+    """Show validation run history, failure trends, or schema changes."""
+    from validatex.storage.run_store import RunStore
+
+    run_store = RunStore(db_path=store)
+    if show_schema:
+        if not dataset:
+            raise click.UsageError("--schema requires --dataset")
+        table = Table(title=f"Schema changes - {dataset}", box=box.ROUNDED)
+        for col in ("Run", "When", "Added", "Removed", "Type changes"):
+            table.add_column(col)
+        for c in run_store.schema_changes(dataset):
+            table.add_row(
+                str(c.run_id),
+                c.timestamp[:19],
+                ", ".join(c.added) or "-",
+                ", ".join(c.removed) or "-",
+                ", ".join(f"{k}: {v['from']}->{v['to']}" for k, v in c.type_changes.items()) or "-",
+            )
+        console.print(table)
+        return
+    if failures:
+        table = Table(title="Failing expectations", box=box.ROUNDED)
+        for col in ("Expectation", "Column", "Severity", "Failures", "Rate %", "Streak", "Trend"):
+            table.add_column(col)
+        for t in run_store.failed_expectation_trends(dataset_name=dataset, limit=limit):
+            table.add_row(
+                t.expectation_type,
+                t.column or "-",
+                t.severity or "-",
+                f"{t.failures}/{t.evaluations}",
+                str(t.failure_rate),
+                str(t.current_streak),
+                t.trend,
+            )
+        console.print(table)
+        return
+    table = Table(title="Validation runs", box=box.ROUNDED)
+    for col in ("Run", "When", "Dataset", "Suite v", "Score", "Pass", "Fail", "Rows"):
+        table.add_column(col)
+    for r in run_store.get_runs(dataset_name=dataset, limit=limit):
+        table.add_row(
+            str(r["run_id"]),
+            str(r["timestamp"])[:19],
+            str(r["dataset_name"]),
+            str(r.get("suite_version") or "-"),
+            str(r["quality_score"]),
+            str(r["passed_expectations"]),
+            str(r["failed_expectations"]),
+            str(r.get("row_count") if r.get("row_count") is not None else "-"),
+        )
+    console.print(table)
+    trend = run_store.quality_trend(dataset_name=dataset, limit=limit)
+    if trend.runs:
+        console.print(f"  Trend: [bold]{trend.direction}[/bold] (mean {trend.mean}, latest {trend.latest})")
+
+
 # ── helpers ───────────────────────────────────────────────────────────────
 
 
