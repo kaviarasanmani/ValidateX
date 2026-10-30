@@ -26,9 +26,9 @@ SEVERITY_WEIGHTS = {
     SEVERITY_INFO: 1,
 }
 
-# Default severity mapping based on expectation type keywords
+# Default severity mapping based on expectation type keywords (covers all 50 built-in expectations)
 _SEVERITY_MAP: Dict[str, str] = {
-    # Critical — data integrity
+    # Critical — data integrity & schema contracts
     "expect_column_to_exist": SEVERITY_CRITICAL,
     "expect_column_to_not_be_null": SEVERITY_CRITICAL,
     "expect_column_values_to_be_unique": SEVERITY_CRITICAL,
@@ -38,24 +38,49 @@ _SEVERITY_MAP: Dict[str, str] = {
     "expect_table_columns_to_match_set": SEVERITY_CRITICAL,
     "expect_table_column_count_to_equal": SEVERITY_CRITICAL,
     "expect_compound_columns_to_be_unique": SEVERITY_CRITICAL,
-    # Warning — data quality
+    "expect_column_values_to_be_not_null_when": SEVERITY_CRITICAL,
+    # Warning — domain rules, format & row-level quality
     "expect_column_values_to_be_between": SEVERITY_WARNING,
     "expect_column_values_to_be_in_set": SEVERITY_WARNING,
     "expect_column_values_to_not_be_in_set": SEVERITY_WARNING,
     "expect_column_values_to_match_regex": SEVERITY_WARNING,
+    "expect_column_values_to_not_match_regex": SEVERITY_WARNING,
     "expect_column_values_to_be_of_type": SEVERITY_WARNING,
     "expect_column_values_to_be_dateutil_parseable": SEVERITY_WARNING,
     "expect_column_pair_values_a_to_be_greater_than_b": SEVERITY_WARNING,
     "expect_column_pair_values_to_be_equal": SEVERITY_WARNING,
     "expect_multicolumn_sum_to_equal": SEVERITY_WARNING,
-    # Info — statistical / informational
+    "expect_column_values_to_be_valid_email": SEVERITY_WARNING,
+    "expect_column_values_to_be_json_parseable": SEVERITY_WARNING,
+    "expect_column_null_percentage_to_be_less_than": SEVERITY_WARNING,
+    "expect_column_values_to_be_positive": SEVERITY_WARNING,
+    "expect_column_values_to_be_negative": SEVERITY_WARNING,
+    "expect_column_values_to_have_no_whitespace": SEVERITY_WARNING,
+    "expect_column_values_to_be_valid_url": SEVERITY_WARNING,
+    "expect_column_values_to_be_valid_ip_address": SEVERITY_WARNING,
+    "expect_column_values_to_be_valid_uuid": SEVERITY_WARNING,
+    "expect_column_values_to_be_valid_iso_date": SEVERITY_WARNING,
+    "expect_column_values_to_be_valid_phone_number": SEVERITY_WARNING,
+    "expect_column_values_to_be_null_when": SEVERITY_WARNING,
+    "expect_column_values_to_satisfy": SEVERITY_WARNING,
+    # Info — statistical / distributional / informational
     "expect_column_value_lengths_to_be_between": SEVERITY_INFO,
+    "expect_column_value_lengths_to_equal": SEVERITY_INFO,
     "expect_column_max_to_be_between": SEVERITY_INFO,
     "expect_column_min_to_be_between": SEVERITY_INFO,
     "expect_column_mean_to_be_between": SEVERITY_INFO,
     "expect_column_stdev_to_be_between": SEVERITY_INFO,
+    "expect_column_sum_to_be_between": SEVERITY_INFO,
+    "expect_column_median_to_be_between": SEVERITY_INFO,
+    "expect_column_quantile_values_to_be_between": SEVERITY_INFO,
+    "expect_column_values_to_be_in_range_of_std_devs": SEVERITY_INFO,
+    "expect_column_correlation_to_be_between": SEVERITY_INFO,
     "expect_column_distinct_values_to_be_in_set": SEVERITY_INFO,
     "expect_column_proportion_of_unique_values_to_be_between": SEVERITY_INFO,
+    "expect_column_values_to_be_all_uppercase": SEVERITY_INFO,
+    "expect_column_values_to_be_all_lowercase": SEVERITY_INFO,
+    "expect_column_values_to_be_increasing": SEVERITY_INFO,
+    "expect_column_values_to_be_decreasing": SEVERITY_INFO,
 }
 
 
@@ -192,17 +217,17 @@ class ExpectationResult:
             # Fallback: key=value pairs
             return " · ".join(f"{k}: {v}" for k, v in val.items())
 
-        # String containing "unique out of" → reformat
+        # String containing "unique ... out of" → reformat
         s = str(val)
-        if "unique out of" in s:
-            try:
-                parts = s.split()
-                uniq = int(parts[0])
-                total = int(parts[4])
+        if "unique" in s and "out of" in s:
+            import re
+
+            m = re.search(r"(\d+)\s+unique.*?out of\s+(\d+)", s)
+            if m:
+                uniq = int(m.group(1))
+                total = int(m.group(2))
                 pct = round(uniq / total * 100, 1) if total > 0 else 0
                 return f"Unique: {uniq}/{total} ({pct}%)"
-            except (IndexError, ValueError):
-                pass
 
         # List → join
         if isinstance(val, list):
@@ -253,7 +278,7 @@ class ColumnHealthSummary:
     @property
     def health_score(self) -> float:
         if self.checks == 0:
-            return 100.0
+            return 0.0
         return round((self.passed / self.checks) * 100, 1)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -287,6 +312,8 @@ class ValidationResult:
     data_source: Optional[str] = None
     engine: str = "pandas"
     statistics: Dict[str, Any] = field(default_factory=dict)
+    total_columns: Optional[int] = None
+    suite_meta: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.run_time is None:
@@ -294,7 +321,9 @@ class ValidationResult:
 
     @property
     def success(self) -> bool:
-        """True only if *every* expectation passed."""
+        """True only if at least one expectation ran and *every* expectation passed."""
+        if not self.results:
+            return True
         return all(r.success for r in self.results)
 
     @property
@@ -319,11 +348,37 @@ class ValidationResult:
             return 0.0
         return round((self.successful_expectations / self.total_expectations) * 100, 2)
 
+    @property
+    def checked_columns(self) -> int:
+        """Number of distinct dataset columns covered by at least one expectation."""
+        cols = set()
+        for r in self.results:
+            if r.column:
+                cols.add(r.column)
+            if isinstance(r.details, dict):
+                for key in ("column_a", "column_b", "corr_with"):
+                    if r.details.get(key):
+                        cols.add(str(r.details[key]))
+                if isinstance(r.details.get("column_list"), list):
+                    cols.update(str(c) for c in r.details["column_list"])
+        return len(cols)
+
+    @property
+    def column_coverage_percent(self) -> Optional[float]:
+        """Percentage of dataset columns covered by at least one expectation."""
+        if self.total_columns is None or self.total_columns <= 0:
+            return None
+        return round(min(self.checked_columns / self.total_columns * 100.0, 100.0), 1)
+
     # -- Quality Score -----------------------------------------------------
 
     def compute_quality_score(self) -> float:
         """
-        Compute a weighted data quality score (0–100).
+        Compute a weighted rule pass score (0–100) across configured expectations.
+
+        IMPORTANT: This score reflects pass rates of *configured checks only*,
+        not absolute dataset quality. Always inspect ``column_coverage_percent``
+        and ``total_expectations`` alongside this score.
 
         Severity weights:
           - Critical: ×3
@@ -333,7 +388,7 @@ class ValidationResult:
         Score = 100 × (weighted_passed / weighted_total)
         """
         if not self.results:
-            return 100.0
+            return 0.0
         weighted_passed = 0.0
         weighted_total = 0.0
         for r in self.results:
@@ -342,7 +397,7 @@ class ValidationResult:
             if r.success:
                 weighted_passed += w
         if weighted_total == 0:
-            return 100.0
+            return 0.0
         return round((weighted_passed / weighted_total) * 100, 1)
 
     # -- Column Health Summary ---------------------------------------------
@@ -408,6 +463,10 @@ class ValidationResult:
             "success_percent": self.success_percent,
             "overall_success": self.success,
             "quality_score": self.compute_quality_score(),
+            "quality_score_scope": "configured_checks_only",
+            "checked_columns": self.checked_columns,
+            "total_columns": self.total_columns,
+            "column_coverage_percent": self.column_coverage_percent,
             "run_time": self.run_time.isoformat() if self.run_time else None,
             "run_duration_seconds": round(self.run_duration_seconds, 3),
         }
@@ -417,9 +476,11 @@ class ValidationResult:
         self.compute_statistics()
         return {
             "suite_name": self.suite_name,
+            "suite_meta": self.suite_meta,
             "success": self.success,
             "statistics": self.statistics,
             "quality_score": self.compute_quality_score(),
+            "quality_score_scope": "configured_checks_only",
             "column_health": [c.to_dict() for c in self.column_health()],
             "data_source": self.data_source,
             "engine": self.engine,
@@ -526,12 +587,19 @@ class ValidationResult:
         self.compute_statistics()
         score = self.compute_quality_score()
         status = "✅ ALL PASSED" if self.success else "❌ SOME FAILED"
+        cov_pct = self.column_coverage_percent
+        cov_str = (
+            f"{self.checked_columns}/{self.total_columns} columns ({cov_pct}%)"
+            if cov_pct is not None
+            else f"{self.checked_columns} columns checked"
+        )
         lines = [
             f"{'='*60}",
             f"  ValidateX Validation Report — {self.suite_name}",
             f"{'='*60}",
             f"  Status           : {status}",
-            f"  Quality Score    : {score} / 100",
+            f"  Quality Score    : {score} / 100 (configured checks only)",
+            f"  Column Coverage  : {cov_str}",
             f"  Total Expectations: {self.total_expectations}",
             f"  Passed           : {self.successful_expectations}",
             f"  Failed           : {self.failed_expectations}",

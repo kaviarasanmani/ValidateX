@@ -277,27 +277,7 @@ class ExpectCompoundColumnsToBeUnique(Expectation):
         total = len(df)
         dup_mask = df.duplicated(subset=columns, keep=False)
         dup_count = int(dup_mask.sum())
-        pct = (dup_count / total * 100) if total > 0 else 0.0
-
-        return self._build_result(
-            success=(dup_count == 0),
-            observed_value=f"{total - dup_count} unique compound keys out of {total}",
-            element_count=total,
-            unexpected_count=dup_count,
-            unexpected_percent=pct,
-            details={"column_list": columns, "duplicate_count": dup_count},
-        )
-
-    def _validate_spark(self, df: Any) -> ExpectationResult:
-        pass
-
-        columns = self.kwargs.get("column_list", [])
-        if not columns:
-            raise ValueError("column_list is required")
-
-        total = df.count()
-        distinct_count = df.select(columns).distinct().count()
-        dup_count = total - distinct_count
+        distinct_count = len(df[columns].drop_duplicates())
         pct = (dup_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
@@ -306,7 +286,29 @@ class ExpectCompoundColumnsToBeUnique(Expectation):
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
-            details={"column_list": columns, "duplicate_count": dup_count},
+            details={"column_list": columns, "duplicate_count": dup_count, "distinct_count": distinct_count},
+        )
+
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        columns = self.kwargs.get("column_list", [])
+        if not columns:
+            raise ValueError("column_list is required")
+
+        total = df.count()
+        distinct_count = df.select(columns).distinct().count()
+        dup_groups = df.groupBy(columns).count().filter(F.col("count") > 1).collect()
+        dup_count = sum(int(r["count"]) for r in dup_groups)
+        pct = (dup_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(dup_count == 0),
+            observed_value=f"{distinct_count} unique compound keys out of {total}",
+            element_count=total,
+            unexpected_count=dup_count,
+            unexpected_percent=pct,
+            details={"column_list": columns, "duplicate_count": dup_count, "distinct_count": distinct_count},
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
@@ -317,13 +319,14 @@ class ExpectCompoundColumnsToBeUnique(Expectation):
         total = len(df)
         dup_mask = df.select(columns).is_duplicated()
         dup_count = int(dup_mask.sum())
+        distinct_count = int(df.select(columns).n_unique())
         pct = (dup_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{total - dup_count} unique compound keys out of {total}",
+            observed_value=f"{distinct_count} unique compound keys out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
-            details={"column_list": columns, "duplicate_count": dup_count},
+            details={"column_list": columns, "duplicate_count": dup_count, "distinct_count": distinct_count},
         )

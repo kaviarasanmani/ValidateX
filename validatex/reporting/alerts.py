@@ -11,6 +11,9 @@ import sys
 from typing import Any, Dict, List, Optional
 
 
+from validatex.core.utils import validate_webhook_url
+
+
 def send_webhook_request(url: str, payload: Dict[str, Any]) -> bool:
     """
     Send a POST request with a JSON payload to the specified webhook URL.
@@ -18,14 +21,15 @@ def send_webhook_request(url: str, payload: Dict[str, Any]) -> bool:
     Uses standard library urllib to avoid third-party dependencies.
     """
     try:
+        safe_url = validate_webhook_url(url)
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
-            url,
+            safe_url,
             data=data,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
             status = response.getcode()
             return bool(200 <= status < 300)
     except urllib.error.HTTPError as e:
