@@ -12,6 +12,14 @@ validatex.core.expectation module
    :show-inheritance:
    :undoc-members:
 
+validatex.core.introspect module
+--------------------------------
+
+.. automodule:: validatex.core.introspect
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 validatex.core.result module
 ----------------------------
 

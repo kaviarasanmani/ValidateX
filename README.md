@@ -2,13 +2,13 @@
   ⭐ If ValidateX solves a real problem for you, a star helps others discover it too — takes 2 seconds.
   <h1 align="center">🚀 ValidateX</h1>
   <p align="center">
-    <strong>A powerful, extensible data quality validation framework for Python.</strong>
+    <strong>A powerful, extensible data quality validation, data contract, and observability framework for Python.</strong>
   </p>
   <p align="center">
     <!-- Build & Tests -->
     <a href="https://github.com/kaviarasanmani/ValidateX/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/kaviarasanmani/ValidateX/tests.yml?branch=main" alt="Build Status (Tests & CI)"></a>
     <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Code Coverage">
-    <img src="https://img.shields.io/badge/tests-128%20passed-brightgreen" alt="Test Passing Rate">
+    <img src="https://img.shields.io/badge/tests-285%20passed-brightgreen" alt="Test Passing Rate">
     <!-- Package, Downloads & Language -->
     <a href="https://pypi.org/project/validatex/"><img src="https://img.shields.io/pypi/v/validatex.svg" alt="PyPI Latest Version"></a>
     <img src="https://img.shields.io/pypi/dm/validatex.svg" alt="PyPI Monthly Downloads">
@@ -23,7 +23,7 @@
   </p>
 </p>
 
-ValidateX provides a comprehensive suite of tools for validating, profiling, and monitoring data quality across **Pandas**, **Polars**, and **PySpark** DataFrames, as well as **Push-Down SQL** engines. Inspired by Great Expectations, it offers a simpler, more focused approach with modern, production-ready HTML reports and an intuitive API.
+ValidateX provides a comprehensive suite of tools for validating, governing, profiling, and monitoring data quality across **Pandas**, **Polars**, and **PySpark** DataFrames, as well as **Push-Down SQL** engines. Inspired by Great Expectations, it offers a simpler, more focused approach with **versioned Data Contracts**, **historical observability (`RunStore`)**, modern HTML reports, and an intuitive API.
 
 ## 📑 Table of Contents
 - [🖼️ Report Preview](#️-report-preview)
@@ -34,6 +34,8 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 - [✨ Features](#-features)
 - [📦 Installation](#-installation)
 - [🏁 Quick Start](#-quick-start)
+- [📜 Data Contracts Engine (v1)](#-data-contracts-engine-v1)
+- [🔭 Data Quality Observability](#-data-quality-observability)
 - [📚 Documentation Hub](#-documentation-hub)
 - [🤖 Automate with CI/CD](#-automate-with-cicd)
 - [🎯 Data Quality Score](#-data-quality-score)
@@ -70,14 +72,16 @@ ValidateX provides a comprehensive suite of tools for validating, profiling, and
 | **Easy Setup** | ✅ `pip install` → validate in 5 lines | ⚠️ Heavy multi-step context setup | ✅ Decorator & Schema API |
 | **HTML Report Generator** | ✅ Modern dark-theme report | ✅ Data docs site | ❌ Basic schema error logs |
 | **Data Quality Score** | ✅ Weighted (0–100) business score | ❌ | ❌ |
+| **Data Contracts & Semver Diff** | ✅ Schema + Rules + Ownership + Breaking-Change Diff | ❌ | ⚠️ Schema only |
+| **Historical Observability** | ✅ Built-in SQLite `RunStore`, Trends, Freshness, Volume Anomaly | ⚠️ External Cloud / Stores | ❌ |
 | **PySpark Support** | ✅ Distributed DataFrame support | ✅ | ⚠️ Limited PySpark engine |
 | **Polars Support** | ✅ Multi-threaded Rust support | ✅ | ⚠️ |
 | **Push-Down SQL Native** | ✅ Postgres, Snowflake, BigQuery, DuckDB | ✅ | ❌ |
 | **Data Drift (PSI)** | ✅ Built-in PSI & Schema shifts | ❌ Separate plugins | ❌ |
 | **Airflow Operator** | ✅ `ValidateXOperator` built-in | ⚠️ External provider | ❌ |
-| **Webhook Alerts** | ✅ Slack & Teams built-in | ⚠️ Complex webhook setups | ❌ |
+| **Webhook Alerts** | ✅ Slack, Teams & Threshold `AlertPolicy` built-in | ⚠️ Complex webhook setups | ❌ |
 
-ValidateX is not a replacement for Great Expectations — it's a **focused alternative** for teams that want production-grade data validation without the overhead.
+ValidateX is not a replacement for Great Expectations — it's a **focused alternative** for teams that want production-grade data validation, data contracts, and observability without the overhead.
 
 ---
 
@@ -124,10 +128,10 @@ Explore production-ready validation examples tailored for major data domains in 
 
 - **Startup data teams** — Ship data quality checks in minutes, not days
 - **ML engineers** — Validate feature stores and training data before model runs
-- **CI/CD pipelines** — Gate deployments on data quality with a single CLI command
+- **CI/CD pipelines** — Gate deployments on data quality and data contract breaking changes with a single CLI command
 - **Analytics teams** — Catch data issues before they reach dashboards
 - **dbt users** — Lightweight validation alongside your transformation layer
-- **Data platform teams** — Monitor data quality across dozens of tables
+- **Data platform teams** — Govern producer–consumer contracts and monitor historical data quality across dozens of tables
 
 ---
 
@@ -135,18 +139,20 @@ Explore production-ready validation examples tailored for major data domains in 
 
 | Feature | Description |
 |---------|-------------|
-| **50+ Built-in Expectations** | Column-level, table-level, format, statistical, and sequential cross-validations |
-| **Push-Down SQL Native** | Execute core validation via SQLAlchemy directly on Postgres, Snowflake, or BigQuery |
-| **Quad-Engine Support** | Pandas, Polars, PySpark, and SQL execution engines |
-| **🔔 Webhook Alerting** | Built-in Slack (Block Kit) and Microsoft Teams (MessageCard) notifications |
-| **🎯 Data Quality Score** | Weighted score (0–100) based on severity of checks |
+| **50+ Built-in Expectations** | Column-level, table-level, format, statistical, conditional, and sequential cross-validations |
+| **📜 Data Contracts Engine (v1)** | Versioned producer–consumer contracts with schema validation, rule ownership, semver registry, and breaking-change detection |
+| **🔭 Historical Observability** | SQLite `RunStore` tracking quality score trends, failing expectation streaks, schema evolution, data freshness, and volume anomalies |
+| **Push-Down SQL Native** | Execute validation via SQLAlchemy directly on Postgres, Snowflake, BigQuery, SQLite, or DuckDB |
+| **Quad-Engine Parity** | Semantically consistent validation across Pandas, Polars, PySpark, and Push-Down SQL |
+| **🔔 Policy & Webhook Alerting** | Threshold-based `AlertPolicy` (quality drops, streaks, volume spikes, stale data) with Slack & Microsoft Teams dispatch |
+| **🎯 Data Quality Score** | Weighted score (0–100) based on severity of checks (`result.quality_score`) |
 | **🔴🟡🔵 Severity Levels** | Critical / Warning / Info classification for every expectation |
 | **📊 Column Health Summary** | At-a-glance per-column health with mini bar charts |
 | **📈 Data Drift Detection** | Calculate Population Stability Index (PSI) and schema shifts between datasets |
 | **🧩 Airflow Integration** | Natively gate data pipelines via `ValidateXOperator` |
 | **Data Profiling** | Auto-analyse datasets and suggest expectations |
-| **YAML/JSON Config** | Define expectations declaratively |
-| **CLI Interface** | Run validations from the command line |
+| **YAML/JSON Config** | Define expectation suites and data contracts declaratively |
+| **CLI Interface** | `validate`, `run`, `profile`, `contract`, `history`, `init`, and `list-expectations` commands |
 | **Clean Output** | All values are native Python types — zero NumPy leakage |
 
 ---
@@ -202,11 +208,18 @@ suite = (
          column="email", regex=r"^[\w.]+@[\w]+\.\w+$")
 )
 
-# Validate
-result = vx.validate(df, suite)
+# Validate (and optionally record in SQLite RunStore)
+result = vx.validate(
+    data=df,
+    suite=suite,
+    run_name="daily_customer_validation",
+    dataset_name="customers",
+    store=".validatex/runs.db",
+)
 
-# Print summary (includes Quality Score)
+# Print summary & quality score
 print(result.summary())
+print(f"Quality Score: {result.quality_score}/100")
 
 # Generate reports
 result.to_html("report.html")
@@ -225,6 +238,17 @@ validatex profile --data data.csv --suggest --output auto_suite.yaml
 # Run validation
 validatex validate --data data.csv --suite suite.yaml --report report.html
 
+# Validate, diff, and register Data Contracts
+validatex contract lint contracts/customer_master.yaml
+validatex contract validate -c contracts/customer_master.yaml -d data.csv --store .validatex/runs.db
+validatex contract diff contracts/v1.yaml contracts/v2.yaml --fail-on-breaking --check-version
+validatex contract register contracts/customer_master.yaml -r contracts_registry/
+
+# Inspect historical validation runs, failure streaks, and schema evolution
+validatex history --store .validatex/runs.db --dataset customers
+validatex history --store .validatex/runs.db --dataset customers --failures
+validatex history --store .validatex/runs.db --dataset customers --schema
+
 # Run checkpoint
 validatex run --checkpoint checkpoint.yaml
 
@@ -234,14 +258,111 @@ validatex list-expectations
 
 ---
 
+## 📜 Data Contracts Engine (v1)
+
+Define reusable, version-controlled data contracts combining **schema validation**, **business quality rules**, **team/steward ownership**, **quality score thresholds**, and **breaking-change detection**.
+
+```yaml
+contract:
+  name: customer_master
+  version: 1.0
+
+  owner:
+    team: customer_data
+    steward: customer_operations
+
+  schema:
+    - name: customer_id
+      type: integer
+      nullable: false
+
+    - name: email
+      type: string
+      nullable: false
+
+  quality_rules:
+    - expectation: expect_column_values_to_be_unique
+      column: customer_id
+      severity: critical
+
+    - expectation: expect_column_values_to_match_regex
+      column: email
+      regex: "^[^@]+@[^@]+\\.[^@]+$"
+      severity: warning
+
+  thresholds:
+    minimum_quality_score: 95
+```
+
+```python
+import validatex as vx
+
+# 1. Load & validate a dataset against the contract
+contract = vx.DataContract.load("customer_master.yaml")
+result = vx.validate_contract(df, contract)
+print(result.success, result.quality_score)
+print("Failures by owner:", result.failures_by_owner())
+
+# 2. Compare contract versions & detect breaking changes
+diff = vx.compare_contracts(old_contract, new_contract)
+print(diff.summary())
+print("Breaking?", diff.has_breaking_changes, "| Required bump:", diff.required_bump)
+
+# 3. Publish into an immutable semver-checked registry
+registry = vx.ContractRegistry("contracts/")
+registry.register(contract)
+```
+
+---
+
+## 🔭 Data Quality Observability
+
+Track historical validation runs, quality score trends, chronically failing expectations, schema evolution, data freshness, volume anomalies, and threshold alerts via the built-in SQLite `RunStore`.
+
+```python
+import validatex as vx
+
+store = vx.RunStore(".validatex/runs.db")
+policy = vx.AlertPolicy(
+    min_quality_score=95.0,
+    alert_on_critical_failure=True,
+    max_quality_drop=5.0,
+    max_consecutive_failures=3,
+    volume_anomaly=True,
+    alert_on_schema_change=True,
+)
+
+# Record validation run & evaluate alert policy
+result = vx.validate(
+    data=df,
+    suite=suite,
+    run_name="daily_customer_validation",
+    dataset_name="customers",
+    store=store,
+    alert_policy=policy,
+)
+
+# Query historical trends & anomalies
+trend = store.quality_trend("customers", limit=30)          # improving / degrading / stable
+failures = store.failed_expectation_trends("customers")     # failure rates & active streaks
+schema_log = store.schema_changes("customers")              # added / removed / re-typed columns
+freshness = vx.check_freshness(df, "updated_at", max_age="24h")
+volume = vx.detect_volume_anomaly(store, "customers", current_count=len(df))
+```
+
+---
+
 ## 📚 Documentation Hub
 
 Explore comprehensive guides, FAQs, and migration documentation:
 
+- 📜 **[Data Contracts Guide (v1)](docs/DATA_CONTRACTS_GUIDE.md)** — Schema contracts, ownership routing, semver registry, and breaking-change detection.
+- 🔭 **[Data Quality Observability Guide](docs/OBSERVABILITY_GUIDE.md)** — Historical `RunStore`, quality/failure trends, schema history, freshness, volume anomalies, and `AlertPolicy`.
+- 🧪 **[Cross-Engine Compatibility Matrix](docs/CROSS_ENGINE_COMPATIBILITY.md)** — Verified semantic parity across Pandas, Polars, PySpark, and Push-Down SQL.
 - 🔁 **[Migration Guide (Great Expectations & AWS Deequ)](docs/MIGRATION_GUIDE.md)** — Step-by-step instructions for converting legacy suites to ValidateX.
-- 🏛️ **[Architectural Decisions & Safeguards (ADR)](docs/ARCHITECTURAL_DECISIONS.md)** — Compute alignment, memory safeguards, and RunStore.
+- 🏛️ **[Architectural Decisions & Safeguards (ADR)](docs/ARCHITECTURAL_DECISIONS.md)** — Compute alignment, memory safeguards, Data Contracts, and `RunStore`.
 - 🛠️ **[Custom Expectations Developer Guide](docs/CUSTOM_EXPECTATIONS_GUIDE.md)** — Extend ValidateX with domain-specific rules.
-- ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Security, engine performance, custom expectations, and alert setup.
+- ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Security, engine performance, custom expectations, contracts, and alert setup.
 - ⚙️ **[GitHub Action Setup](action.yml)** — Automate data quality gates in CI/CD.
 
 ### 📰 Technical Articles & Guides
@@ -280,14 +401,14 @@ result = vx.validate(
     sql_engine=engine      # The SQLAlchemy database connection
 )
 
-print(f"Data Quality Score: {result.compute_quality_score()}/100")
+print(f"Data Quality Score: {result.quality_score}/100")
 ```
 
 ---
 
 ## 🤖 Automate with CI/CD
 
-ValidateX is designed to be lightweight and CI-friendly. You can easily integrate it into your GitHub Actions, GitLab CI, or Jenkins pipelines to gate deployments on data quality.
+ValidateX is designed to be lightweight and CI-friendly. You can easily integrate it into your GitHub Actions, GitLab CI, or Jenkins pipelines to gate deployments on data quality and data contract evolution.
 
 **Example: GitHub Actions**
 ```yaml
@@ -308,6 +429,14 @@ jobs:
       - name: Install ValidateX
         run: pip install validatex
         
+      - name: Check Data Contract for Breaking Changes
+        run: |
+          validatex contract diff \
+            contracts/customer_master_v1.yaml \
+            contracts/customer_master_v2.yaml \
+            --fail-on-breaking \
+            --check-version
+
       - name: Run Data Validation
         run: |
           validatex validate \
@@ -412,8 +541,7 @@ ValidateX computes a **weighted rule pass score** (0–100) based on the severit
 
 ```python
 result = vx.validate(df, suite)
-score = result.compute_quality_score()
-print(f"Configured Quality Score: {score}/100")
+print(f"Configured Quality Score: {result.quality_score}/100")
 print(f"Column Coverage: {result.checked_columns}/{result.total_columns} ({result.column_coverage_percent}%)")
 ```
 
@@ -581,27 +709,47 @@ expectations:
 validatex/
 ├── core/
 │   ├── expectation.py     # Base class + registry
+│   ├── introspect.py      # Cross-engine schema & logical type introspection
 │   ├── result.py          # ValidationResult, QualityScore, Severity, ColumnHealth
 │   ├── suite.py           # ExpectationSuite (fluent API)
 │   └── validator.py       # Validation orchestrator
+├── contracts/
+│   ├── model.py           # DataContract, SchemaField, QualityRule, ContractOwner, Thresholds
+│   ├── validator.py       # validate_contract() & ContractResult (failures_by_owner)
+│   ├── diff.py            # compare_contracts() & breaking-change detection
+│   └── registry.py        # ContractRegistry (immutable semver-governed storage)
+├── observability/
+│   ├── trends.py          # quality_trend(), failed_expectation_trends(), schema_changes()
+│   ├── freshness.py       # check_freshness() & check_run_freshness()
+│   ├── volume.py          # detect_volume_anomaly() (median/MAD modified z-score)
+│   ├── alerting.py        # AlertPolicy & dispatch_alerts()
+│   └── recorder.py        # Automatic RunStore logging & alert evaluation
+├── storage/
+│   └── run_store.py       # SQLite RunStore (runs, expectation_runs, schema_snapshots)
 ├── expectations/
-│   ├── column_expectations.py     # 16 column-level checks
-│   ├── table_expectations.py      # 5 table-level checks
-│   └── aggregate_expectations.py  # 4 cross-column checks
+│   ├── column_expectations.py       # Core column-level checks
+│   ├── table_expectations.py        # Table-level checks
+│   ├── aggregate_expectations.py    # Cross-column & compound key checks
+│   ├── statistical_expectations.py  # Quantile, z-score, correlation checks
+│   ├── format_expectations.py       # URL, IP, UUID, ISO date, phone, case checks
+│   ├── sequential_expectations.py   # Monotonic increasing/decreasing checks
+│   └── conditional_expectations.py  # Conditional null/not-null & custom predicate checks
 ├── datasources/
 │   ├── csv_source.py      # CSV files
 │   ├── parquet_source.py  # Parquet files
 │   ├── database_source.py # SQL databases (SQLAlchemy)
 │   └── dataframe_source.py # Direct DataFrames
 ├── profiler/
-│   └── profiler.py        # Auto-profiling & suggestion engine
+│   ├── profiler.py        # Auto-profiling & suggestion engine
+│   └── drift_detector.py  # Population Stability Index (PSI) & schema drift
 ├── reporting/
 │   ├── html_report.py     # Production HTML reports
-│   └── json_report.py     # JSON reports
+│   ├── json_report.py     # JSON reports
+│   └── alerts.py          # Slack (Block Kit) & Microsoft Teams (MessageCard) webhooks
 ├── config/
 │   └── loader.py          # YAML/JSON config loading
 └── cli/
-    └── main.py            # CLI (validate, run, profile, init, list-expectations)
+    └── main.py            # CLI (validate, run, profile, contract, history, init, list-expectations)
 ```
 
 ---
@@ -609,7 +757,7 @@ validatex/
 ## 🧪 Testing
 
 ```bash
-# Run all tests (66 tests)
+# Run all tests (285 tests)
 pytest tests/ -v
 
 # Run with coverage
@@ -676,24 +824,26 @@ data = result.to_dict()
 
 ## 🚀 Roadmap
 
-- [x] 50+ built-in expectations (column, table, aggregate, statistical, sequential)
-- [x] Pandas, PySpark, and SQL Push-down Dual-engine support
+- [x] 50+ built-in expectations (column, table, aggregate, statistical, sequential, format, conditional)
+- [x] Quad-engine support with cross-engine semantic parity (Pandas, Polars, PySpark, Push-Down SQL)
 - [x] Severity modeling (Critical / Warning / Info)
-- [x] Weighted data quality score (0–100)
+- [x] Weighted data quality score (`0–100`, `result.quality_score`)
 - [x] Column health summary with mini charts
 - [x] Modern HTML reports with dark theme
 - [x] Data Drift Detection (Population Stability Index / Schema checks)
 - [x] Apache Airflow Integration via `ValidateXOperator`
 - [x] Sequential & Time-Series Anomaly features
 - [x] Data profiler with auto-suggestion
-- [x] CLI with validate, profile, run, init commands
+- [x] CLI with `validate`, `profile`, `run`, `contract`, `history`, `init`, `list-expectations` commands
 - [x] YAML/JSON declarative configuration
 - [x] Native Python type sanitization
 - [x] Slack / Teams notifications on failure
 - [x] GitHub Action template for CI/CD
 - [x] Polars engine support
-- [ ] Baseline history tracking & trend charts
-- [ ] Great Expectations suite import/migration
+- [x] Data Contract Engine v1 (versioned YAML/JSON contracts, ownership, breaking-change diff, `ContractRegistry`)
+- [x] Historical Data Quality Observability (`RunStore`, quality/failure trends, schema evolution, freshness, volume anomalies, `AlertPolicy`)
+- [ ] HTML report embedded historical trend charts
+- [ ] Great Expectations suite import/migration CLI (`validatex migrate`)
 - [ ] Web dashboard for multi-dataset monitoring
 - [ ] dbt integration plugin
 

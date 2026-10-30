@@ -9,11 +9,14 @@ Subpackages
 
    validatex.cli
    validatex.config
+   validatex.contracts
    validatex.core
    validatex.datasources
    validatex.expectations
+   validatex.observability
    validatex.profiler
    validatex.reporting
+   validatex.storage
 
 Module contents
 ---------------

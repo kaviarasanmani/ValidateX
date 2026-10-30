@@ -1,7 +1,7 @@
 ValidateX Documentation
 =======================
 
-ValidateX is a powerful, extensible data quality validation framework for Python, fully supporting Pandas and PySpark.
+ValidateX is a powerful, extensible data quality validation, data contract, and observability framework for Python, supporting Pandas, Polars, PySpark, and Push-Down SQL.
 
 .. toctree::
    :maxdepth: 2
