@@ -7,9 +7,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="validatex",
-    version="1.2.0",
+    version="1.3.0",
     author="Kaviarasan Mani",
-    description="A powerful data quality validation framework inspired by Great Expectations",
+    description="A powerful Python data quality, data contracts, and observability framework",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/kaviarasanmani/ValidateX",
@@ -28,6 +28,7 @@ setup(
         "click>=8.0",
         "rich>=12.0",
         "colorama>=0.4.0",
+        "python-dateutil>=2.8.0",
     ],
     extras_require={
         "spark": ["pyspark>=3.0.0"],

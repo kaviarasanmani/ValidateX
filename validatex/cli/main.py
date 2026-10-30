@@ -41,8 +41,11 @@ from rich import box
 console = Console()
 
 
+from validatex import __version__
+
+
 @click.group()
-@click.version_option(version="1.0.0", prog_name="ValidateX")
+@click.version_option(version=__version__, prog_name="ValidateX")
 def cli():
     """ValidateX — Data Quality Validation Framework 🚀"""
 
