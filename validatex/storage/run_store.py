@@ -47,8 +47,7 @@ class RunStore:
 
     def _init_db(self) -> None:
         with self._get_connection() as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS validation_runs (
                     run_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     suite_name TEXT NOT NULL,
@@ -63,8 +62,7 @@ class RunStore:
                     data_source TEXT,
                     duration_seconds REAL NOT NULL
                 )
-                """
-            )
+                """)
             conn.commit()
 
     def log_run(self, result: "ValidationResult") -> int:

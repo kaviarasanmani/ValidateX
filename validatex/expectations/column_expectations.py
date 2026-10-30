@@ -243,6 +243,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         col = str(self.column)
         total = len(df)
         dup_count = int(df[col].is_duplicated().sum())
@@ -355,6 +356,7 @@ class ExpectColumnValuesToBeBetween(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         col = str(self.column)
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
@@ -499,7 +501,6 @@ class ExpectColumnValuesToBeInSet(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         value_set = set(self.kwargs.get("value_set", []))
         series = df[self.column].drop_nulls()
         total = len(series)
@@ -516,6 +517,38 @@ class ExpectColumnValuesToBeInSet(Expectation):
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
             details={"value_set": list(value_set)},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        value_list = list(self.kwargs.get("value_set", []))
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        params = {f"v_{i}": v for i, v in enumerate(value_list)}
+        in_clause = ", ".join(f":v_{i}" for i in range(len(value_list)))
+        cond = f"{col} NOT IN ({in_clause})" if value_list else "1=1"
+        query = (
+            f"SELECT COUNT({col}) AS total, COUNT(DISTINCT {col}) AS uniq, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {col} IS NOT NULL AND {cond} THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), params).fetchone()
+            total = int(row.total) if row and row.total else 0
+            uniq = int(row.uniq) if row and row.uniq else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={"unique_values": uniq},
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"value_set": value_list},
         )
 
 
@@ -568,7 +601,6 @@ class ExpectColumnValuesToNotBeInSet(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         forbidden = set(self.kwargs.get("value_set", []))
         series = df[self.column].drop_nulls()
         total = len(series)
@@ -584,6 +616,36 @@ class ExpectColumnValuesToNotBeInSet(Expectation):
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
             details={"forbidden_set": list(forbidden)},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        forbidden = list(self.kwargs.get("value_set", []))
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        params = {f"v_{i}": v for i, v in enumerate(forbidden)}
+        in_clause = ", ".join(f":v_{i}" for i in range(len(forbidden)))
+        cond = f"{col} IN ({in_clause})" if forbidden else "1=0"
+        query = (
+            f"SELECT COUNT({col}) AS total, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {col} IS NOT NULL AND {cond} THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), params).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"forbidden_set": forbidden},
         )
 
 
@@ -638,6 +700,7 @@ class ExpectColumnValuesToMatchRegex(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         regex = self.kwargs.get("regex", ".*")
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
@@ -732,14 +795,47 @@ class ExpectColumnValuesToBeDateutilParseable(Expectation):
             details={"unparseable_count": null_after},
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        col_name = str(self.column)
+        filtered = df.filter(F.col(col_name).isNotNull())
+        total = filtered.count()
+
+        @F.udf(returnType="boolean")
+        def check_date(val):
+            try:
+                import dateutil.parser
+
+                dateutil.parser.parse(str(val))
+                return True
+            except Exception:
+                return False
+
+        unexpected_df = filtered.filter(~check_date(F.col(col_name)))
+        unexpected_count = unexpected_df.count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        bad_vals = [r[0] for r in unexpected_df.select(col_name).limit(20).collect()]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=bad_vals,
+            details={"unparseable_count": unexpected_count},
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         series = df[self.column].drop_nulls()
         total = len(series)
 
         def check_date(x):
             try:
                 import dateutil.parser
+
                 dateutil.parser.parse(str(x))
                 return True
             except Exception:
@@ -819,6 +915,7 @@ class ExpectColumnValueLengthsToBeBetween(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         min_len = self.kwargs.get("min_value", 0)
         max_len = self.kwargs.get("max_value", float("inf"))
         series = df[self.column].drop_nulls().cast(pl.String)
@@ -840,6 +937,45 @@ class ExpectColumnValueLengthsToBeBetween(Expectation):
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
             details={"min_value": min_len, "max_value": max_len},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_len = self.kwargs.get("min_value", 0)
+        max_len = self.kwargs.get("max_value")
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        len_expr = f"LENGTH(CAST({col} AS VARCHAR))"
+        conds = [f"{len_expr} < :min_len"]
+        params = {"min_len": min_len}
+        if max_len is not None and max_len != float("inf"):
+            conds.append(f"{len_expr} > :max_len")
+            params["max_len"] = max_len
+
+        where_unexpected = " OR ".join(conds)
+        query = (
+            f"SELECT COUNT({col}) AS total, MIN({len_expr}) AS min_l, MAX({len_expr}) AS max_l, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {col} IS NOT NULL AND ({where_unexpected}) THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), params).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+            min_l = int(row.min_l) if row and total > 0 and row.min_l is not None else None
+            max_l = int(row.max_l) if row and total > 0 and row.max_l is not None else None
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={"min_length": min_l, "max_length": max_l},
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"min_value": min_len, "max_value": max_len if max_len is not None else float("inf")},
         )
 
 
@@ -904,6 +1040,35 @@ class ExpectColumnMaxToBeBetween(Expectation):
         max_val = self.kwargs.get("max_value")
         val = df[self.column].max()
         col_max = float(val) if val is not None else None
+
+        success = True
+        if col_max is None:
+            success = False
+        else:
+            if min_val is not None and col_max < min_val:
+                success = False
+            if max_val is not None and col_max > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=col_max,
+            details={"min_value": min_val, "max_value": max_val, "column_max": col_max},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        query = f"SELECT MAX({col}) AS col_max FROM {from_clause}"  # nosec B608
+        with engine.connect() as conn:
+            raw_max = conn.execute(text(query)).scalar()
+        col_max = float(raw_max) if raw_max is not None else None
 
         success = True
         if col_max is None:
@@ -998,6 +1163,35 @@ class ExpectColumnMinToBeBetween(Expectation):
             details={"min_value": min_val, "max_value": max_val, "column_min": col_min},
         )
 
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        query = f"SELECT MIN({col}) AS col_min FROM {from_clause}"  # nosec B608
+        with engine.connect() as conn:
+            raw_min = conn.execute(text(query)).scalar()
+        col_min = float(raw_min) if raw_min is not None else None
+
+        success = True
+        if col_min is None:
+            success = False
+        else:
+            if min_val is not None and col_min < min_val:
+                success = False
+            if max_val is not None and col_min > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=col_min,
+            details={"min_value": min_val, "max_value": max_val, "column_min": col_min},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 13. expect_column_mean_to_be_between
@@ -1068,6 +1262,39 @@ class ExpectColumnMeanToBeBetween(Expectation):
         max_val = self.kwargs.get("max_value")
         val = df[self.column].mean()
         col_mean = float(val) if val is not None else None
+
+        success = True
+        if col_mean is None:
+            success = False
+        else:
+            if min_val is not None and col_mean < min_val:
+                success = False
+            if max_val is not None and col_mean > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=round(col_mean, 4) if col_mean is not None else None,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_mean": round(col_mean, 4) if col_mean is not None else None,
+            },
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        query = f"SELECT AVG({col}) AS col_mean FROM {from_clause}"  # nosec B608
+        with engine.connect() as conn:
+            raw_mean = conn.execute(text(query)).scalar()
+        col_mean = float(raw_mean) if raw_mean is not None else None
 
         success = True
         if col_mean is None:
@@ -1208,25 +1435,50 @@ class ExpectColumnDistinctValuesToBeInSet(Expectation):
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
-        pass
-
         value_set = set(self.kwargs.get("value_set", []))
         row_list = df.select(self.column).distinct().collect()
         actual_values = {row[0] for row in row_list if row[0] is not None}
         unexpected = actual_values - value_set
+        total_distinct = len(actual_values)
 
         return self._build_result(
             success=(len(unexpected) == 0),
             observed_value={"distinct_values": list(actual_values)[:20]},
+            element_count=total_distinct,
             unexpected_count=len(unexpected),
+            unexpected_percent=((len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0),
             unexpected_values=list(unexpected)[:20],
             details={"value_set": list(value_set)},
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         value_set = set(self.kwargs.get("value_set", []))
         actual_values = set(df[self.column].drop_nulls().unique().to_list())
+        unexpected = actual_values - value_set
+        total_distinct = len(actual_values)
+
+        return self._build_result(
+            success=(len(unexpected) == 0),
+            observed_value={"distinct_values": list(actual_values)[:20]},
+            element_count=total_distinct,
+            unexpected_count=len(unexpected),
+            unexpected_percent=((len(unexpected) / total_distinct * 100) if total_distinct > 0 else 0.0),
+            unexpected_values=list(unexpected)[:20],
+            details={"value_set": list(value_set)},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        value_set = set(self.kwargs.get("value_set", []))
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        query = f"SELECT DISTINCT {col} AS val FROM {from_clause} WHERE {col} IS NOT NULL"  # nosec B608
+        with engine.connect() as conn:
+            rows = conn.execute(text(query)).fetchall()
+        actual_values = {r.val for r in rows}
         unexpected = actual_values - value_set
         total_distinct = len(actual_values)
 
@@ -1279,6 +1531,32 @@ class ExpectColumnProportionOfUniqueValuesToBeBetween(Expectation):
             },
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        min_val = self.kwargs.get("min_value", 0.0)
+        max_val = self.kwargs.get("max_value", 1.0)
+        col_name = str(self.column)
+        filtered = df.filter(F.col(col_name).isNotNull())
+        total = filtered.count()
+        unique_count = filtered.select(col_name).distinct().count()
+        proportion = (unique_count / total) if total > 0 else 0.0
+
+        success = min_val <= proportion <= max_val
+
+        return self._build_result(
+            success=success,
+            observed_value=round(proportion, 4),
+            element_count=total,
+            details={
+                "unique_count": unique_count,
+                "total_count": total,
+                "proportion": round(proportion, 4),
+                "min_value": min_val,
+                "max_value": max_val,
+            },
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
         min_val = self.kwargs.get("min_value", 0.0)
         max_val = self.kwargs.get("max_value", 1.0)
@@ -1287,6 +1565,37 @@ class ExpectColumnProportionOfUniqueValuesToBeBetween(Expectation):
         unique_count = series.n_unique()
         proportion = (unique_count / total) if total > 0 else 0.0
 
+        success = min_val <= proportion <= max_val
+
+        return self._build_result(
+            success=success,
+            observed_value=round(proportion, 4),
+            element_count=total,
+            details={
+                "unique_count": unique_count,
+                "total_count": total,
+                "proportion": round(proportion, 4),
+                "min_value": min_val,
+                "max_value": max_val,
+            },
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_val = self.kwargs.get("min_value", 0.0)
+        max_val = self.kwargs.get("max_value", 1.0)
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        query = f"SELECT COUNT({col}) AS total, COUNT(DISTINCT {col}) AS uniq FROM {from_clause}"  # nosec B608
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unique_count = int(row.uniq) if row and row.uniq else 0
+
+        proportion = (unique_count / total) if total > 0 else 0.0
         success = min_val <= proportion <= max_val
 
         return self._build_result(

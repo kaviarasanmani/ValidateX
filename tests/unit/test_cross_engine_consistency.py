@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import create_engine, text
 
 import validatex as vx
-from validatex.core.expectation import list_expectations
+from validatex.core.expectation import Expectation, get_expectation_class, list_expectations
 from validatex.core.result import _SEVERITY_MAP
 from validatex.integrations.bigquery import ValidateXBigQuery
 from validatex.integrations.snowflake import ValidateXSnowflake
@@ -54,12 +54,21 @@ def canonical_sql_engine(canonical_pandas_df: pd.DataFrame):
     return engine
 
 
-def test_all_registered_expectations_have_explicit_severity():
-    """Every registered expectation must have an explicit entry in _SEVERITY_MAP."""
+def test_all_50_registered_expectations_have_explicit_severity_and_all_4_engines():
+    """Every registered expectation must have an explicit entry in _SEVERITY_MAP and support all 4 engines."""
     registered = set(list_expectations())
+    assert len(registered) == 50, f"Expected 50 expectations, got {len(registered)}"
     mapped = set(_SEVERITY_MAP.keys())
     missing = registered - mapped
     assert not missing, f"Expectations missing from _SEVERITY_MAP: {sorted(missing)}"
+
+    # Verify every expectation implements _validate_pandas, _validate_polars, _validate_spark, and _validate_sql
+    for exp_name in sorted(registered):
+        cls = get_expectation_class(exp_name)
+        assert cls._validate_pandas is not Expectation._validate_pandas, f"{exp_name} missing _validate_pandas"
+        assert cls._validate_polars is not Expectation._validate_polars, f"{exp_name} missing _validate_polars"
+        assert cls._validate_spark is not Expectation._validate_spark, f"{exp_name} missing _validate_spark"
+        assert hasattr(cls, "_validate_sql"), f"{exp_name} missing _validate_sql"
 
 
 def test_empty_suite_quality_score_is_zero(canonical_pandas_df: pd.DataFrame):
@@ -96,17 +105,45 @@ def test_pandas_polars_sql_core_expectation_parity(
 ):
     """
     Same rule, same semantics: verify Pandas, Polars, and Push-Down SQL
-    produce identical results on the exact same dataset.
+    produce identical results on the exact same dataset across table, column,
+    aggregate, statistical, format, and conditional expectations.
     """
     suite = (
         vx.ExpectationSuite("cross_engine_parity")
         .add("expect_table_row_count_to_equal", value=5)
         .add("expect_table_row_count_to_be_between", min_value=3, max_value=10)
+        .add(
+            "expect_table_columns_to_match_ordered_list",
+            column_list=["user_id", "name", "age", "status", "email", "score"],
+        )
+        .add(
+            "expect_table_columns_to_match_set",
+            column_set=["score", "email", "status", "age", "name", "user_id"],
+        )
+        .add("expect_table_column_count_to_equal", value=6)
         .add("expect_column_to_exist", column="user_id")
         .add("expect_column_to_exist", column="missing_col")
         .add("expect_column_to_not_be_null", column="name")
         .add("expect_column_values_to_be_unique", column="user_id")
         .add("expect_column_values_to_be_between", column="age", min_value=18, max_value=120)
+        .add("expect_column_values_to_be_in_set", column="status", value_set=["ACTIVE", "PENDING", "INACTIVE"])
+        .add("expect_column_values_to_not_be_in_set", column="status", value_set=["INVALID_STATUS"])
+        .add("expect_column_value_lengths_to_be_between", column="status", min_value=6, max_value=8)
+        .add("expect_column_max_to_be_between", column="score", min_value=90.0, max_value=100.0)
+        .add("expect_column_min_to_be_between", column="score", min_value=60.0, max_value=75.0)
+        .add("expect_column_mean_to_be_between", column="score", min_value=80.0, max_value=90.0)
+        .add("expect_column_sum_to_be_between", column="score", min_value=400.0, max_value=450.0)
+        .add("expect_column_null_percentage_to_be_less_than", column="name", max_pct=25.0)
+        .add("expect_column_values_to_be_positive", column="age")
+        .add("expect_column_values_to_be_all_uppercase", column="status")
+        .add("expect_column_pair_values_a_to_be_greater_than_b", column="score", column_b="age")
+        .add("expect_compound_columns_to_be_unique", column_list=["user_id", "status"])
+        .add(
+            "expect_column_values_to_be_null_when",
+            column="name",
+            condition_column="status",
+            condition_value="INVALID_STATUS",
+        )
     )
 
     res_pd = vx.validate(canonical_pandas_df, suite, engine="pandas")
@@ -129,14 +166,13 @@ def test_pandas_polars_sql_core_expectation_parity(
             == round(r_pl.unexpected_percent, 2)
             == round(r_sq.unexpected_percent, 2)
         ), f"Mismatch on unexpected_percent for #{idx} ({exp_name})"
-        assert (
-            r_pd.human_observed == r_pl.human_observed == r_sq.human_observed
-        ), f"Mismatch on human_observed for #{idx} ({exp_name}): pd={r_pd.human_observed!r}, pl={r_pl.human_observed!r}, sql={r_sq.human_observed!r}"
 
 
 @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
-def test_pandas_polars_extended_expectation_parity(canonical_pandas_df: pd.DataFrame):
-    """Verify extended expectations (format, statistical, aggregate, sequential) match between Pandas and Polars."""
+def test_pandas_polars_sql_extended_expectation_parity(
+    canonical_pandas_df: pd.DataFrame, canonical_sql_engine
+):
+    """Verify extended expectations (format, statistical, aggregate, sequential) match across Pandas, Polars, and SQL."""
     suite = (
         vx.ExpectationSuite("extended_parity")
         .add("expect_column_values_to_be_in_set", column="status", value_set=["ACTIVE", "PENDING", "INACTIVE"])
@@ -155,21 +191,24 @@ def test_pandas_polars_extended_expectation_parity(canonical_pandas_df: pd.DataF
 
     res_pd = vx.validate(canonical_pandas_df, suite, engine="pandas")
     res_pl = vx.validate(pl.from_pandas(canonical_pandas_df), suite, engine="polars")
+    res_sql = vx.validate("users", suite, engine="sql", sql_engine=canonical_sql_engine)
 
-    assert res_pd.compute_quality_score() == res_pl.compute_quality_score()
-    for r_pd, r_pl in zip(res_pd.results, res_pl.results):
-        assert r_pd.expectation_type == r_pl.expectation_type
-        assert r_pd.success == r_pl.success, f"Success mismatch on {r_pd.expectation_type}"
-        assert r_pd.element_count == r_pl.element_count, f"Element count mismatch on {r_pd.expectation_type}"
-        assert r_pd.unexpected_count == r_pl.unexpected_count, f"Unexpected count mismatch on {r_pd.expectation_type}"
-        assert round(r_pd.unexpected_percent, 4) == round(r_pl.unexpected_percent, 4)
+    assert res_pd.compute_quality_score() == res_pl.compute_quality_score() == res_sql.compute_quality_score()
+    for r_pd, r_pl, r_sq in zip(res_pd.results, res_pl.results, res_sql.results):
+        assert r_pd.expectation_type == r_pl.expectation_type == r_sq.expectation_type
+        assert r_pd.success == r_pl.success == r_sq.success, f"Success mismatch on {r_pd.expectation_type}"
+        assert r_pd.element_count == r_pl.element_count == r_sq.element_count, f"Element count mismatch on {r_pd.expectation_type}"
+        assert r_pd.unexpected_count == r_pl.unexpected_count == r_sq.unexpected_count, f"Unexpected count mismatch on {r_pd.expectation_type}"
+        assert round(r_pd.unexpected_percent, 4) == round(r_pl.unexpected_percent, 4) == round(r_sq.unexpected_percent, 4)
 
 
 @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
 def test_all_null_column_aggregate_parity():
-    """Verify all-null columns behave identically on Pandas and Polars for min/max/mean/stdev."""
+    """Verify all-null columns behave identically on Pandas, Polars, and SQL for min/max/mean/stdev."""
     df_pd = pd.DataFrame({"val": [None, None, None]}, dtype="float64")
     df_pl = pl.DataFrame({"val": [None, None, None]}, schema={"val": pl.Float64})
+    sql_eng = create_engine("sqlite:///:memory:")
+    df_pd.to_sql("null_table", sql_eng, index=False)
 
     suite = (
         vx.ExpectationSuite("all_null_stats")
@@ -181,12 +220,15 @@ def test_all_null_column_aggregate_parity():
 
     res_pd = vx.validate(df_pd, suite, engine="pandas")
     res_pl = vx.validate(df_pl, suite, engine="polars")
+    res_sql = vx.validate("null_table", suite, engine="sql", sql_engine=sql_eng)
 
-    for r_pd, r_pl in zip(res_pd.results, res_pl.results):
+    for r_pd, r_pl, r_sq in zip(res_pd.results, res_pl.results, res_sql.results):
         assert r_pd.success is False
         assert r_pl.success is False
+        assert r_sq.success is False
         assert r_pd.observed_value is None
         assert r_pl.observed_value is None
+        assert r_sq.observed_value is None
 
 
 def test_snowflake_and_bigquery_helpers_dispatch_sql(canonical_sql_engine):

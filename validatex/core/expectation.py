@@ -141,9 +141,22 @@ class Expectation(ABC):
         """Validate using PySpark engine.  Optional override."""
         raise NotImplementedError(f"{self.expectation_type} does not support PySpark yet.")
 
-    def _validate_sql(self, engine: Any) -> ExpectationResult:
-        """Validate using SQLAlchemy engine. Optional override."""
-        raise NotImplementedError(f"{self.expectation_type} does not support SQL yet.")
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        """Validate using SQLAlchemy engine. Falls back to reading the validated query into Pandas if not overridden."""
+        import pandas as pd
+        from sqlalchemy import text
+
+        from validatex.core.utils import format_sql_from_clause
+
+        engine, query_or_table = sql_source
+        from_clause = format_sql_from_clause(query_or_table)
+        query = f"SELECT * FROM {from_clause}"  # nosec B608
+        with engine.connect() as conn:
+            result = conn.execute(text(query))
+            rows = result.fetchall()
+            cols = list(result.keys())
+        df = pd.DataFrame(rows, columns=cols)
+        return self._validate_pandas(df)
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         """Validate using Polars engine. Optional override."""

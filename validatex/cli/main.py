@@ -58,7 +58,12 @@ def cli():
 @click.option("--json-report", "-j", default=None, help="Output JSON report path.")
 @click.option("--slack-webhook", default=None, help="Slack webhook URL for alerts.")
 @click.option("--teams-webhook", default=None, help="Microsoft Teams webhook URL for alerts.")
-@click.option("--notify-on", default="failure", type=click.Choice(["failure", "always"]), help="Trigger alerts on 'failure' or 'always'.")
+@click.option(
+    "--notify-on",
+    default="failure",
+    type=click.Choice(["failure", "always"]),
+    help="Trigger alerts on 'failure' or 'always'.",
+)
 def validate(data, suite, engine, report, json_report, slack_webhook, teams_webhook, notify_on):
     """Validate a dataset against an expectation suite."""
     # Ensure expectations are registered
@@ -103,6 +108,7 @@ def validate(data, suite, engine, report, json_report, slack_webhook, teams_webh
 
     # Webhook alerts
     import os
+
     slack_url = slack_webhook or os.environ.get("VALIDATEX_SLACK_WEBHOOK_URL")
     if slack_url:
         result.send_slack(webhook_url=slack_url, notify_on=notify_on)
@@ -161,6 +167,7 @@ def run(checkpoint):
 
     # Webhook alerts
     import os
+
     slack_cfg = report_cfg.get("slack")
     slack_url = None
     slack_notify_on = "failure"
@@ -350,6 +357,7 @@ def _load_data_file(filepath: str, engine: str = "pandas"):
     ext = Path(filepath).suffix.lower()
     if engine.lower() == "polars":
         import polars as pl
+
         if ext == ".csv":
             return pl.read_csv(filepath)
         elif ext in (".parquet", ".pq"):
@@ -360,6 +368,7 @@ def _load_data_file(filepath: str, engine: str = "pandas"):
             return pl.read_csv(filepath)
 
     import pandas as pd
+
     if ext == ".csv":
         return pd.read_csv(filepath)
     elif ext in (".parquet", ".pq"):

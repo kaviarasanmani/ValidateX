@@ -13,6 +13,7 @@ import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
+from validatex.core.utils import format_sql_from_clause, quote_sql_identifier
 
 # ---------------------------------------------------------------------------
 # 1. expect_column_values_to_not_match_regex
@@ -74,6 +75,7 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         regex = self.kwargs.get("regex", "")
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
@@ -150,6 +152,7 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
         pattern = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$")
@@ -204,7 +207,6 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
-        from pyspark.sql.types import StringType
 
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
@@ -237,6 +239,7 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
 
@@ -331,6 +334,37 @@ class ExpectColumnSumToBeBetween(Expectation):
             return self._build_result(success=True, element_count=0)
 
         actual_sum = float(series.sum())
+
+        success = True
+        if min_val is not None:
+            success = success and (actual_sum >= min_val)
+        if max_val is not None:
+            success = success and (actual_sum <= max_val)
+
+        return self._build_result(
+            success=success,
+            observed_value=actual_sum,
+            element_count=total_rows,
+            details={"min_value": min_val, "max_value": max_val, "actual_sum": actual_sum},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+
+        query = f"SELECT COUNT({col}) AS total, COALESCE(SUM({col}), 0) AS actual_sum FROM {from_clause}"  # nosec B608
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total_rows = int(row.total) if row and row.total else 0
+            actual_sum = float(row.actual_sum) if row and row.actual_sum is not None else 0.0
+
+        if total_rows == 0:
+            return self._build_result(success=True, element_count=0)
 
         success = True
         if min_val is not None:
@@ -495,6 +529,7 @@ class ExpectColumnValueLengthsToEqual(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         value = self.kwargs.get("value")
         if value is None:
             raise ValueError("Missing 'value' argument")
@@ -513,5 +548,35 @@ class ExpectColumnValueLengthsToEqual(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+            details={"expected_length": value},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        value = self.kwargs.get("value")
+        if value is None:
+            raise ValueError("Missing 'value' argument")
+
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = (
+            f"SELECT COUNT({col}) AS total, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {col} IS NOT NULL AND LENGTH(CAST({col} AS VARCHAR)) != :val "
+            f"THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), {"val": value}).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
             details={"expected_length": value},
         )

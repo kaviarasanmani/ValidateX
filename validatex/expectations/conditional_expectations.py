@@ -9,12 +9,13 @@ Python lambda expectations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Any
+from typing import Any, Callable, Optional
 
 import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
+from validatex.core.utils import format_sql_from_clause, quote_sql_identifier
 
 # ---------------------------------------------------------------------------
 # 1. expect_column_values_to_be_null_when (conditional null)
@@ -63,8 +64,35 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
             details={"condition": f"{cond_col} {when} {cond_val!r}"},
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        cond_col = str(self.kwargs.get("condition_column"))
+        cond_val = self.kwargs.get("condition_value")
+        when = self.kwargs.get("when", "equal")
+        target_col = str(self.column)
+
+        if when == "equal":
+            scoped = df.filter(F.col(cond_col) == cond_val)
+        else:
+            scoped = df.filter(F.col(cond_col) != cond_val)
+
+        total = scoped.count()
+        unexpected_df = scoped.filter(F.col(target_col).isNotNull())
+        unexpected_count = unexpected_df.count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = [r[0] for r in unexpected_df.select(target_col).limit(20).collect()]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={"condition": f"{cond_col} {when} {cond_val!r}"},
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         cond_col = self.kwargs.get("condition_column")
         cond_val = self.kwargs.get("condition_value")
         when = self.kwargs.get("when", "equal")
@@ -86,6 +114,38 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=scoped[self.column].filter(unexpected_mask).to_list()[:20],
+            details={"condition": f"{cond_col} {when} {cond_val!r}"},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        cond_col = self.kwargs.get("condition_column")
+        cond_val = self.kwargs.get("condition_value")
+        when = self.kwargs.get("when", "equal")
+
+        q_col = quote_sql_identifier(self.column)
+        q_cond = quote_sql_identifier(cond_col)
+        from_clause = format_sql_from_clause(query_or_table)
+        op = "=" if when == "equal" else "!="
+
+        query = (
+            f"SELECT COUNT(*) AS total, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {q_col} IS NOT NULL THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause} WHERE {q_cond} {op} :cond_val"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), {"cond_val": cond_val}).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
             details={"condition": f"{cond_col} {when} {cond_val!r}"},
         )
 
@@ -135,8 +195,32 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
             details={"condition": f"{cond_col} {when} {cond_val!r}"},
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        cond_col = str(self.kwargs.get("condition_column"))
+        cond_val = self.kwargs.get("condition_value")
+        when = self.kwargs.get("when", "equal")
+        target_col = str(self.column)
+
+        if when == "equal":
+            scoped = df.filter(F.col(cond_col) == cond_val)
+        else:
+            scoped = df.filter(F.col(cond_col) != cond_val)
+
+        total = scoped.count()
+        unexpected_count = scoped.filter(F.col(target_col).isNull()).count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"condition": f"{cond_col} {when} {cond_val!r}"},
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         cond_col = self.kwargs.get("condition_column")
         cond_val = self.kwargs.get("condition_value")
         when = self.kwargs.get("when", "equal")
@@ -160,6 +244,38 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
             details={"condition": f"{cond_col} {when} {cond_val!r}"},
         )
 
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        cond_col = self.kwargs.get("condition_column")
+        cond_val = self.kwargs.get("condition_value")
+        when = self.kwargs.get("when", "equal")
+
+        q_col = quote_sql_identifier(self.column)
+        q_cond = quote_sql_identifier(cond_col)
+        from_clause = format_sql_from_clause(query_or_table)
+        op = "=" if when == "equal" else "!="
+
+        query = (
+            f"SELECT COUNT(*) AS total, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {q_col} IS NULL THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause} WHERE {q_cond} {op} :cond_val"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), {"cond_val": cond_val}).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"condition": f"{cond_col} {when} {cond_val!r}"},
+        )
+
 
 # ---------------------------------------------------------------------------
 # 3. expect_column_values_to_satisfy (user-defined lambda)
@@ -171,9 +287,6 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
 class ExpectColumnValuesToSatisfy(Expectation):
     """
     Expect each non-null column value to satisfy a custom Python callable.
-
-    IMPORTANT: This expectation only works with the Pandas engine and cannot
-    be persisted/loaded from YAML because lambdas are not serializable.
 
     Usage (Python API only):
         from validatex.expectations.conditional_expectations import ExpectColumnValuesToSatisfy
@@ -189,7 +302,7 @@ class ExpectColumnValuesToSatisfy(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         condition: Optional[Callable] = self.kwargs.get("condition")
         if condition is None:
-            raise ValueError("You must pass a 'condition' callable to " "ExpectColumnValuesToSatisfy.")
+            raise ValueError("You must pass a 'condition' callable to ExpectColumnValuesToSatisfy.")
 
         series = df[self.column].dropna()
         total = len(series)
@@ -211,11 +324,41 @@ class ExpectColumnValuesToSatisfy(Expectation):
             details={"condition": str(condition)},
         )
 
-    def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
         condition: Optional[Callable] = self.kwargs.get("condition")
         if condition is None:
-            raise ValueError("You must pass a 'condition' callable to " "ExpectColumnValuesToSatisfy.")
+            raise ValueError("You must pass a 'condition' callable to ExpectColumnValuesToSatisfy.")
+
+        col_name = str(self.column)
+        filtered = df.filter(F.col(col_name).isNotNull())
+        total = filtered.count()
+
+        @F.udf(returnType="boolean")
+        def check_cond(val):
+            return bool(condition(val))
+
+        unexpected_df = filtered.filter(~check_cond(F.col(col_name)))
+        unexpected_count = unexpected_df.count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_vals = [r[0] for r in unexpected_df.select(col_name).limit(20).collect()]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_vals,
+            details={"condition": str(condition)},
+        )
+
+    def _validate_polars(self, df: Any) -> ExpectationResult:
+        import polars as pl
+
+        condition: Optional[Callable] = self.kwargs.get("condition")
+        if condition is None:
+            raise ValueError("You must pass a 'condition' callable to ExpectColumnValuesToSatisfy.")
 
         series = df[self.column].drop_nulls()
         total = len(series)

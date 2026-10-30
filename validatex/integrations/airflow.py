@@ -7,10 +7,11 @@ from typing import Any, Dict, Optional
 try:
     from airflow.models import BaseOperator
     from airflow.utils.context import Context
+
     _AIRFLOW_AVAILABLE = True
 except ImportError:
-    BaseOperator = object   # type: ignore[assignment,misc]
-    Context = dict          # type: ignore[assignment,misc]
+    BaseOperator = object  # type: ignore[assignment,misc]
+    Context = dict  # type: ignore[assignment,misc]
     _AIRFLOW_AVAILABLE = False
 
 import pandas as pd
@@ -52,10 +53,7 @@ class ValidateXOperator(BaseOperator):
         **kwargs: Any,
     ):
         if not _AIRFLOW_AVAILABLE:
-            raise ImportError(
-                "To use ValidateXOperator, install Apache Airflow:\n"
-                "    pip install apache-airflow"
-            )
+            raise ImportError("To use ValidateXOperator, install Apache Airflow:\n" "    pip install apache-airflow")
         super().__init__(**kwargs)
         self.suite = suite
         self.data_path = data_path

@@ -15,6 +15,7 @@ import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
+from validatex.core.utils import format_sql_from_clause, quote_sql_identifier
 
 # Pre-compiled patterns
 _URL_PATTERN = re.compile(r"^(https?|ftp)://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
@@ -42,6 +43,7 @@ def _build_unexpected(series, unexpected_mask):
 
 def _polars_vectorized_match(series, pattern: re.Pattern):
     import polars as pl
+
     return series.cast(pl.String).map_elements(lambda x: bool(pattern.match(x)), return_dtype=pl.Boolean)
 
 
@@ -97,7 +99,6 @@ class ExpectColumnValuesToBeValidUrl(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         series = df[self.column].drop_nulls()
         unexpected_mask = ~_polars_vectorized_match(series, _URL_PATTERN)
         total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
@@ -158,10 +159,10 @@ class ExpectColumnValuesToBeValidIpAddress(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         series = df[self.column].drop_nulls()
         matches = series.cast(pl.String).map_elements(
-            lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x)),
-            return_dtype=pl.Boolean
+            lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x)), return_dtype=pl.Boolean
         )
         unexpected_mask = ~matches
         total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
@@ -218,7 +219,6 @@ class ExpectColumnValuesToBeValidUuid(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         series = df[self.column].drop_nulls()
         unexpected_mask = ~_polars_vectorized_match(series, _UUID_PATTERN)
         total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
@@ -275,7 +275,6 @@ class ExpectColumnValuesToBeValidIsoDate(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         series = df[self.column].drop_nulls()
         unexpected_mask = ~_polars_vectorized_match(series, _ISO_DATE_PATTERN)
         total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
@@ -332,7 +331,6 @@ class ExpectColumnValuesToBeValidPhoneNumber(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         series = df[self.column].drop_nulls()
         unexpected_mask = ~_polars_vectorized_match(series, _PHONE_PATTERN)
         total, cnt, pct, vals = _polars_build_unexpected(series, unexpected_mask)
@@ -391,6 +389,7 @@ class ExpectColumnValuesToBeAllUppercase(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
         unexpected_mask = series != series.str.to_uppercase()
@@ -402,6 +401,31 @@ class ExpectColumnValuesToBeAllUppercase(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = (
+            f"SELECT COUNT({col}) AS total, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {col} IS NOT NULL AND CAST({col} AS VARCHAR) != UPPER(CAST({col} AS VARCHAR)) "
+            f"THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
         )
 
 
@@ -451,6 +475,7 @@ class ExpectColumnValuesToBeAllLowercase(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
         unexpected_mask = series != series.str.to_lowercase()
@@ -462,4 +487,29 @@ class ExpectColumnValuesToBeAllLowercase(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=series.filter(unexpected_mask).to_list()[:20],
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = (
+            f"SELECT COUNT({col}) AS total, "  # nosec B608
+            f"COALESCE(SUM(CASE WHEN {col} IS NOT NULL AND CAST({col} AS VARCHAR) != LOWER(CAST({col} AS VARCHAR)) "
+            f"THEN 1 ELSE 0 END), 0) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
         )

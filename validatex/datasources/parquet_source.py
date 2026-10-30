@@ -42,4 +42,5 @@ class ParquetDataSource(DataSource):
 
     def load_polars(self) -> Any:
         import polars as pl
+
         return pl.read_parquet(self.filepath, **self.read_options)

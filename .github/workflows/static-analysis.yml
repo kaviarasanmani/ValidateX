@@ -24,9 +24,8 @@ jobs:
           pip install numpy sqlalchemy polars
           pip install -e ".[dev,database,polars]"
 
-      - name: Check formatting with Black (non-blocking)
+      - name: Check formatting with Black
         run: black --check --diff validatex/ --line-length 120 --skip-string-normalization
-        continue-on-error: true
 
       - name: Lint with Flake8
         run: |
@@ -41,4 +40,3 @@ jobs:
             --no-strict-optional \
             --disable-error-code=misc \
             --exclude 'validatex/(cli|integrations)'
-        continue-on-error: true

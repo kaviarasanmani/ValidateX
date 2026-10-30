@@ -61,8 +61,42 @@ class ExpectColumnValuesToBeIncreasing(Expectation):
             details={"strictly_increasing": strictly},
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import Window
+        from pyspark.sql import functions as F
+
+        strictly = self.kwargs.get("strictly", False)
+        col_name = str(self.column)
+        filtered = df.filter(F.col(col_name).isNotNull())
+        total = filtered.count()
+
+        if total < 2:
+            return self._build_result(success=True, element_count=total)
+
+        w = Window.orderBy(F.monotonically_increasing_id())
+        with_prev = filtered.withColumn("_prev_val", F.lag(F.col(col_name)).over(w)).filter(
+            F.col("_prev_val").isNotNull()
+        )
+        if strictly:
+            unexpected_df = with_prev.filter(F.col(col_name) <= F.col("_prev_val"))
+        else:
+            unexpected_df = with_prev.filter(F.col(col_name) < F.col("_prev_val"))
+
+        unexpected_count = unexpected_df.count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_values = [r[0] for r in unexpected_df.select(col_name).limit(10).collect()]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value=f"{total - unexpected_count} ordered elements",
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_values,
+            details={"strictly_increasing": strictly},
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         strictly = self.kwargs.get("strictly", False)
         series = df[self.column].drop_nulls()
         total = len(series)
@@ -135,8 +169,42 @@ class ExpectColumnValuesToBeDecreasing(Expectation):
             details={"strictly_decreasing": strictly},
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import Window
+        from pyspark.sql import functions as F
+
+        strictly = self.kwargs.get("strictly", False)
+        col_name = str(self.column)
+        filtered = df.filter(F.col(col_name).isNotNull())
+        total = filtered.count()
+
+        if total < 2:
+            return self._build_result(success=True, element_count=total)
+
+        w = Window.orderBy(F.monotonically_increasing_id())
+        with_prev = filtered.withColumn("_prev_val", F.lag(F.col(col_name)).over(w)).filter(
+            F.col("_prev_val").isNotNull()
+        )
+        if strictly:
+            unexpected_df = with_prev.filter(F.col(col_name) >= F.col("_prev_val"))
+        else:
+            unexpected_df = with_prev.filter(F.col(col_name) > F.col("_prev_val"))
+
+        unexpected_count = unexpected_df.count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        unexpected_values = [r[0] for r in unexpected_df.select(col_name).limit(10).collect()]
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value=f"{total - unexpected_count} ordered elements",
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            unexpected_values=unexpected_values,
+            details={"strictly_decreasing": strictly},
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         strictly = self.kwargs.get("strictly", False)
         series = df[self.column].drop_nulls()
         total = len(series)

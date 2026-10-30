@@ -46,4 +46,5 @@ class CSVDataSource(DataSource):
 
     def load_polars(self) -> Any:
         import polars as pl
+
         return pl.read_csv(self.filepath, **self.read_options)

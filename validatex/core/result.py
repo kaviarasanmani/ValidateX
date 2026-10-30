@@ -538,10 +538,14 @@ class ValidationResult:
             True if notification was sent successfully or skipped by config, False otherwise.
         """
         import os
+
         url = webhook_url or os.environ.get("VALIDATEX_SLACK_WEBHOOK_URL")
         if not url:
             import sys
-            sys.stderr.write("ValidateX Slack Alert: No webhook URL provided and VALIDATEX_SLACK_WEBHOOK_URL not set.\n")
+
+            sys.stderr.write(
+                "ValidateX Slack Alert: No webhook URL provided and VALIDATEX_SLACK_WEBHOOK_URL not set.\n"
+            )
             return False
 
         # Check notify_on condition
@@ -549,6 +553,7 @@ class ValidationResult:
             return True  # Skipped successfully since it passed
 
         from validatex.reporting.alerts import SlackNotifier
+
         return SlackNotifier.send(self, url)
 
     def send_teams(self, webhook_url: Optional[str] = None, notify_on: str = "failure") -> bool:
@@ -569,10 +574,14 @@ class ValidationResult:
             True if notification was sent successfully or skipped by config, False otherwise.
         """
         import os
+
         url = webhook_url or os.environ.get("VALIDATEX_TEAMS_WEBHOOK_URL")
         if not url:
             import sys
-            sys.stderr.write("ValidateX Teams Alert: No webhook URL provided and VALIDATEX_TEAMS_WEBHOOK_URL not set.\n")
+
+            sys.stderr.write(
+                "ValidateX Teams Alert: No webhook URL provided and VALIDATEX_TEAMS_WEBHOOK_URL not set.\n"
+            )
             return False
 
         # Check notify_on condition
@@ -580,6 +589,7 @@ class ValidationResult:
             return True  # Skipped successfully since it passed
 
         from validatex.reporting.alerts import TeamsNotifier
+
         return TeamsNotifier.send(self, url)
 
     def summary(self) -> str:

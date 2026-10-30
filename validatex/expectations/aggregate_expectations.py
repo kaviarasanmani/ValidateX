@@ -14,6 +14,7 @@ import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
+from validatex.core.utils import format_sql_from_clause, quote_sql_identifier
 
 # ---------------------------------------------------------------------------
 # 1. expect_column_pair_values_a_to_be_greater_than_b
@@ -91,6 +92,7 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         col_a = str(self.kwargs.get("column_a", self.column))
         col_b = str(self.kwargs.get("column_b"))
         or_equal = self.kwargs.get("or_equal", False)
@@ -109,6 +111,39 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
         unexpected_count = len(unexpected)
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"column_a": col_a, "column_b": col_b, "or_equal": or_equal},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        col_a = self.kwargs.get("column_a", self.column)
+        col_b = self.kwargs.get("column_b")
+        or_equal = self.kwargs.get("or_equal", False)
+        if col_b is None:
+            raise ValueError("column_b is required")
+
+        qa = quote_sql_identifier(col_a)
+        qb = quote_sql_identifier(col_b)
+        from_clause = format_sql_from_clause(query_or_table)
+        op = "<" if or_equal else "<="
+        query = (
+            f"SELECT COUNT(*) AS total, "  # nosec B608
+            f"SUM(CASE WHEN {qa} {op} {qb} THEN 1 ELSE 0 END) AS unexpected "
+            f"FROM {from_clause} WHERE {qa} IS NOT NULL AND {qb} IS NOT NULL"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(unexpected_count == 0),
             element_count=total,
@@ -175,6 +210,7 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         col_a = str(self.kwargs.get("column_a", self.column))
         col_b = str(self.kwargs.get("column_b"))
 
@@ -187,6 +223,37 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
         unexpected_count = len(unexpected)
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={"column_a": col_a, "column_b": col_b},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        col_a = self.kwargs.get("column_a", self.column)
+        col_b = self.kwargs.get("column_b")
+        if col_b is None:
+            raise ValueError("column_b is required")
+
+        qa = quote_sql_identifier(col_a)
+        qb = quote_sql_identifier(col_b)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = (
+            f"SELECT COUNT(*) AS total, "  # nosec B608
+            f"SUM(CASE WHEN {qa} != {qb} THEN 1 ELSE 0 END) AS unexpected "
+            f"FROM {from_clause} WHERE {qa} IS NOT NULL AND {qb} IS NOT NULL"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query)).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(unexpected_count == 0),
             element_count=total,
@@ -232,8 +299,37 @@ class ExpectMulticolumnSumToEqual(Expectation):
             },
         )
 
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from functools import reduce
+        from operator import add
+
+        from pyspark.sql import functions as F
+
+        columns = self.kwargs.get("column_list", [])
+        target = self.kwargs.get("sum_total")
+
+        if not columns:
+            raise ValueError("column_list is required")
+
+        total = df.count()
+        sum_expr = reduce(add, [F.coalesce(F.col(str(c)), F.lit(0)) for c in columns])
+        unexpected_count = df.filter(sum_expr != target).count()
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={
+                "column_list": columns,
+                "expected_sum": target,
+            },
+        )
+
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
+
         columns = self.kwargs.get("column_list", [])
         target = self.kwargs.get("sum_total")
 
@@ -245,6 +341,39 @@ class ExpectMulticolumnSumToEqual(Expectation):
         unexpected_count = int((row_sums != target).sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
+        return self._build_result(
+            success=(unexpected_count == 0),
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
+            details={
+                "column_list": columns,
+                "expected_sum": target,
+            },
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        columns = self.kwargs.get("column_list", [])
+        target = self.kwargs.get("sum_total")
+        if not columns:
+            raise ValueError("column_list is required")
+
+        from_clause = format_sql_from_clause(query_or_table)
+        sum_expr = " + ".join(f"COALESCE({quote_sql_identifier(c)}, 0)" for c in columns)
+        query = (
+            f"SELECT COUNT(*) AS total, "  # nosec B608
+            f"SUM(CASE WHEN ({sum_expr}) != :target THEN 1 ELSE 0 END) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), {"target": target}).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(unexpected_count == 0),
             element_count=total,
@@ -322,6 +451,38 @@ class ExpectCompoundColumnsToBeUnique(Expectation):
         distinct_count = int(df.select(columns).n_unique())
         pct = (dup_count / total * 100) if total > 0 else 0.0
 
+        return self._build_result(
+            success=(dup_count == 0),
+            observed_value=f"{distinct_count} unique compound keys out of {total}",
+            element_count=total,
+            unexpected_count=dup_count,
+            unexpected_percent=pct,
+            details={"column_list": columns, "duplicate_count": dup_count, "distinct_count": distinct_count},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        columns = self.kwargs.get("column_list", [])
+        if not columns:
+            raise ValueError("column_list is required")
+
+        from_clause = format_sql_from_clause(query_or_table)
+        quoted_cols = ", ".join(quote_sql_identifier(c) for c in columns)
+        query_stats = (
+            f"SELECT COALESCE(SUM(cnt), 0) AS total, "  # nosec B608
+            f"COUNT(*) AS distinct_count, "
+            f"COALESCE(SUM(CASE WHEN cnt > 1 THEN cnt ELSE 0 END), 0) AS dup_count "
+            f"FROM (SELECT COUNT(*) AS cnt FROM {from_clause} GROUP BY {quoted_cols}) AS grp"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query_stats)).fetchone()
+            total = int(row.total) if row else 0
+            distinct_count = int(row.distinct_count) if row else 0
+            dup_count = int(row.dup_count) if row else 0
+
+        pct = (dup_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(dup_count == 0),
             observed_value=f"{distinct_count} unique compound keys out of {total}",

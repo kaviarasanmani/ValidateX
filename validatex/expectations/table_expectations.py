@@ -216,6 +216,28 @@ class ExpectTableColumnsToMatchOrderedList(Expectation):
             },
         )
 
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        expected_columns = self.kwargs.get("column_list", [])
+        from_clause = format_sql_from_clause(query_or_table)
+        query = f"SELECT * FROM {from_clause} LIMIT 0"  # nosec B608
+        with engine.connect() as conn:
+            res = conn.execute(text(query))
+            actual_columns = list(res.keys())
+        success = actual_columns == expected_columns
+        return self._build_result(
+            success=success,
+            observed_value=actual_columns,
+            details={
+                "expected_columns": expected_columns,
+                "actual_columns": actual_columns,
+                "missing": [c for c in expected_columns if c not in actual_columns],
+                "extra": [c for c in actual_columns if c not in expected_columns],
+            },
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. expect_table_columns_to_match_set
@@ -289,6 +311,33 @@ class ExpectTableColumnsToMatchSet(Expectation):
             },
         )
 
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        expected_set = set(self.kwargs.get("column_set", []))
+        exact = self.kwargs.get("exact_match", True)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = f"SELECT * FROM {from_clause} LIMIT 0"  # nosec B608
+        with engine.connect() as conn:
+            res = conn.execute(text(query))
+            actual_set = set(res.keys())
+
+        if exact:
+            success = actual_set == expected_set
+        else:
+            success = expected_set.issubset(actual_set)
+
+        return self._build_result(
+            success=success,
+            observed_value=sorted(actual_set),
+            details={
+                "expected": sorted(expected_set),
+                "missing": sorted(expected_set - actual_set),
+                "extra": sorted(actual_set - expected_set),
+            },
+        )
+
 
 # ---------------------------------------------------------------------------
 # 5. expect_table_column_count_to_equal
@@ -323,6 +372,22 @@ class ExpectTableColumnCountToEqual(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         expected = self.kwargs.get("value", 0)
         actual = len(df.columns)
+        return self._build_result(
+            success=(actual == expected),
+            observed_value=actual,
+            details={"expected_count": expected, "actual_count": actual},
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        expected = self.kwargs.get("value", 0)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = f"SELECT * FROM {from_clause} LIMIT 0"  # nosec B608
+        with engine.connect() as conn:
+            res = conn.execute(text(query))
+            actual = len(list(res.keys()))
         return self._build_result(
             success=(actual == expected),
             observed_value=actual,

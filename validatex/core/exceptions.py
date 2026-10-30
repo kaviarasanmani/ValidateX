@@ -10,6 +10,7 @@ from __future__ import annotations
 
 class ValidateXError(Exception):
     """Base exception for all ValidateX errors."""
+
     pass
 
 
@@ -23,9 +24,11 @@ class ValidateXEngineError(ValidateXError):
 
 class SuiteConfigurationError(ValidateXError):
     """Raised when an Expectation Suite or JSON/YAML configuration is invalid."""
+
     pass
 
 
 class DataLoadError(ValidateXError):
     """Raised when a data file or database source cannot be loaded."""
+
     pass
