@@ -15,6 +15,7 @@ import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
+from validatex.core.utils import format_sql_from_clause, quote_sql_identifier
 
 # ---------------------------------------------------------------------------
 # 1. expect_column_to_exist
@@ -40,6 +41,7 @@ class ExpectColumnToExist(Expectation):
         exists = self.column in df.columns
         return self._build_result(
             success=exists,
+            observed_value=list(df.columns),
             details={"column_exists": exists},
         )
 
@@ -47,6 +49,7 @@ class ExpectColumnToExist(Expectation):
         exists = self.column in df.columns
         return self._build_result(
             success=exists,
+            observed_value=list(df.columns),
             details={"column_exists": exists},
         )
 
@@ -54,15 +57,18 @@ class ExpectColumnToExist(Expectation):
         from sqlalchemy import text
 
         engine, query_or_table = sql_source
+        from_clause = format_sql_from_clause(query_or_table)
 
         # Fast query to just get column headers
-        query = f"SELECT * FROM ({query_or_table}) AS subquery LIMIT 1"
+        query = f"SELECT * FROM {from_clause} LIMIT 1"  # nosec B608
         with engine.connect() as conn:
             result = conn.execute(text(query))
-            exists = str(self.column) in result.keys()
+            cols = list(result.keys())
+            exists = str(self.column) in cols
 
         return self._build_result(
             success=exists,
+            observed_value=cols,
             details={"column_exists": exists},
         )
 
@@ -108,7 +114,6 @@ class ExpectColumnToNotBeNull(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        import polars as pl
         col = str(self.column)
         total = len(df)
         null_count = int(df[col].is_null().sum())
@@ -126,9 +131,13 @@ class ExpectColumnToNotBeNull(Expectation):
         from sqlalchemy import text
 
         engine, query_or_table = sql_source
-
-        col = str(self.column)
-        query = f"SELECT COUNT(*) as total, SUM(CASE WHEN {col} IS NULL THEN 1 ELSE 0 END) as nulls FROM ({query_or_table}) AS subquery"
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+        query = (
+            f"SELECT COUNT(*) as total, "  # nosec B608
+            f"SUM(CASE WHEN {col} IS NULL THEN 1 ELSE 0 END) as nulls "
+            f"FROM {from_clause}"
+        )
         with engine.connect() as conn:
             row = conn.execute(text(query)).fetchone()
             total = int(row.total) if row and row.total else 0
@@ -161,33 +170,44 @@ class ExpectColumnValuesToBeUnique(Expectation):
         total = len(df)
         dup_mask = df[self.column].duplicated(keep=False)
         dup_count = int(dup_mask.sum())
+        distinct_count = int(df[self.column].nunique(dropna=False))
         pct = (dup_count / total * 100) if total > 0 else 0.0
         dup_values = df.loc[dup_mask, self.column].unique().tolist()[:20]
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{total - dup_count} unique out of {total}",
+            observed_value=f"{distinct_count} unique out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
             unexpected_values=dup_values,
-            details={"duplicate_count": dup_count},
+            details={"duplicate_count": dup_count, "distinct_count": distinct_count},
         )
 
     def _validate_sql(self, sql_source: Any) -> ExpectationResult:
         from sqlalchemy import text
 
         engine, query_or_table = sql_source
-
-        col = str(self.column)
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
         query = (
-            f"SELECT COUNT({col}) as total, COUNT(DISTINCT {col}) as distinct_count FROM ({query_or_table}) AS subquery"
+            f"SELECT COUNT({col}) as total, "  # nosec B608
+            f"COUNT(DISTINCT {col}) as distinct_count "
+            f"FROM {from_clause}"
+        )
+        dup_query = (
+            f"SELECT {col} AS val, COUNT(*) AS cnt "  # nosec B608
+            f"FROM {from_clause} "
+            f"WHERE {col} IS NOT NULL "
+            f"GROUP BY {col} HAVING COUNT(*) > 1"
         )
         with engine.connect() as conn:
             row = conn.execute(text(query)).fetchone()
             total = int(row.total) if row and row.total else 0
             distinct = int(row.distinct_count) if row and row.distinct_count else 0
+            dup_rows = conn.execute(text(dup_query)).fetchall()
 
-        dup_count = total - distinct
+        dup_count = sum(int(r.cnt) for r in dup_rows) if dup_rows else (total - distinct)
+        dup_values = [r.val for r in dup_rows[:20]] if dup_rows else []
         pct = (dup_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
@@ -196,13 +216,20 @@ class ExpectColumnValuesToBeUnique(Expectation):
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
-            details={"duplicate_count": dup_count},
+            unexpected_values=dup_values,
+            details={"duplicate_count": dup_count, "distinct_count": distinct},
         )
 
     def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        col_name = str(self.column)
         total = df.count()
-        distinct_count = df.select(self.column).distinct().count()
-        dup_count = total - distinct_count
+        distinct_count = df.select(col_name).distinct().count()
+        dup_groups = df.groupBy(col_name).count().filter(F.col("count") > 1)
+        dup_rows = dup_groups.collect()
+        dup_count = sum(int(r["count"]) for r in dup_rows)
+        dup_values = [r[col_name] for r in dup_rows[:20]]
         pct = (dup_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(dup_count == 0),
@@ -210,6 +237,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
+            unexpected_values=dup_values,
             details={"duplicate_count": dup_count, "distinct_count": distinct_count},
         )
 
@@ -361,6 +389,57 @@ class ExpectColumnValuesToBeBetween(Expectation):
             unexpected_count=unexpected_count,
             unexpected_percent=pct,
             unexpected_values=unexpected_vals,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "strict_min": strict_min,
+                "strict_max": strict_max,
+            },
+        )
+
+    def _validate_sql(self, sql_source: Any) -> ExpectationResult:
+        from sqlalchemy import text
+
+        engine, query_or_table = sql_source
+        col = quote_sql_identifier(self.column)
+        from_clause = format_sql_from_clause(query_or_table)
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        strict_min = self.kwargs.get("strict_min", False)
+        strict_max = self.kwargs.get("strict_max", False)
+
+        conds = []
+        params = {}
+        if min_val is not None:
+            op = "<=" if strict_min else "<"
+            conds.append(f"{col} {op} :min_val")
+            params["min_val"] = min_val
+        if max_val is not None:
+            op = ">=" if strict_max else ">"
+            conds.append(f"{col} {op} :max_val")
+            params["max_val"] = max_val
+
+        where_unexpected = " OR ".join(conds) if conds else "1=0"
+        query = (
+            f"SELECT COUNT({col}) AS total, "  # nosec B608
+            f"MIN({col}) AS col_min, MAX({col}) AS col_max, "
+            f"SUM(CASE WHEN {col} IS NOT NULL AND ({where_unexpected}) THEN 1 ELSE 0 END) AS unexpected "
+            f"FROM {from_clause}"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(query), params).fetchone()
+            total = int(row.total) if row and row.total else 0
+            unexpected_count = int(row.unexpected) if row and row.unexpected else 0
+            col_min = row.col_min if row and total > 0 else None
+            col_max = row.col_max if row and total > 0 else None
+
+        pct = (unexpected_count / total * 100) if total > 0 else 0.0
+        return self._build_result(
+            success=(unexpected_count == 0),
+            observed_value={"min": col_min, "max": col_max},
+            element_count=total,
+            unexpected_count=unexpected_count,
+            unexpected_percent=pct,
             details={
                 "min_value": min_val,
                 "max_value": max_val,
@@ -562,8 +641,11 @@ class ExpectColumnValuesToMatchRegex(Expectation):
         regex = self.kwargs.get("regex", ".*")
         series = df[self.column].drop_nulls().cast(pl.String)
         total = len(series)
-        pattern = re.compile(regex)
-        match_mask = series.map_elements(lambda x: bool(pattern.search(x)), return_dtype=pl.Boolean)
+        try:
+            match_mask = series.str.contains(regex)
+        except Exception:
+            pattern = re.compile(regex)
+            match_mask = series.map_elements(lambda x: bool(pattern.search(x)), return_dtype=pl.Boolean)
         unexpected_count = int((~match_mask).sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
         unexpected_vals = series.filter(~match_mask).to_list()[:20]
@@ -776,13 +858,17 @@ class ExpectColumnMaxToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_max = df[self.column].max()
+        raw_max = df[self.column].max()
+        col_max = None if pd.isna(raw_max) else float(raw_max)
 
         success = True
-        if min_val is not None and col_max < min_val:
+        if col_max is None:
             success = False
-        if max_val is not None and col_max > max_val:
-            success = False
+        else:
+            if min_val is not None and col_max < min_val:
+                success = False
+            if max_val is not None and col_max > max_val:
+                success = False
 
         return self._build_result(
             success=success,
@@ -795,13 +881,17 @@ class ExpectColumnMaxToBeBetween(Expectation):
 
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_max = df.agg(F.max(str(self.column))).first()[0]
+        raw_max = df.agg(F.max(str(self.column))).first()[0]
+        col_max = float(raw_max) if raw_max is not None else None
 
         success = True
-        if min_val is not None and col_max < min_val:
+        if col_max is None:
             success = False
-        if max_val is not None and col_max > max_val:
-            success = False
+        else:
+            if min_val is not None and col_max < min_val:
+                success = False
+            if max_val is not None and col_max > max_val:
+                success = False
 
         return self._build_result(
             success=success,
@@ -846,13 +936,17 @@ class ExpectColumnMinToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_min = df[self.column].min()
+        raw_min = df[self.column].min()
+        col_min = None if pd.isna(raw_min) else float(raw_min)
 
         success = True
-        if min_val is not None and col_min < min_val:
+        if col_min is None:
             success = False
-        if max_val is not None and col_min > max_val:
-            success = False
+        else:
+            if min_val is not None and col_min < min_val:
+                success = False
+            if max_val is not None and col_min > max_val:
+                success = False
 
         return self._build_result(
             success=success,
@@ -865,13 +959,17 @@ class ExpectColumnMinToBeBetween(Expectation):
 
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_min = df.agg(F.min(str(self.column))).first()[0]
+        raw_min = df.agg(F.min(str(self.column))).first()[0]
+        col_min = float(raw_min) if raw_min is not None else None
 
         success = True
-        if min_val is not None and col_min < min_val:
+        if col_min is None:
             success = False
-        if max_val is not None and col_min > max_val:
-            success = False
+        else:
+            if min_val is not None and col_min < min_val:
+                success = False
+            if max_val is not None and col_min > max_val:
+                success = False
 
         return self._build_result(
             success=success,
@@ -916,21 +1014,25 @@ class ExpectColumnMeanToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_mean = float(df[self.column].mean())
+        raw_mean = df[self.column].mean()
+        col_mean = None if pd.isna(raw_mean) else float(raw_mean)
 
         success = True
-        if min_val is not None and col_mean < min_val:
+        if col_mean is None:
             success = False
-        if max_val is not None and col_mean > max_val:
-            success = False
+        else:
+            if min_val is not None and col_mean < min_val:
+                success = False
+            if max_val is not None and col_mean > max_val:
+                success = False
 
         return self._build_result(
             success=success,
-            observed_value=round(col_mean, 4),
+            observed_value=round(col_mean, 4) if col_mean is not None else None,
             details={
                 "min_value": min_val,
                 "max_value": max_val,
-                "column_mean": round(col_mean, 4),
+                "column_mean": round(col_mean, 4) if col_mean is not None else None,
             },
         )
 
@@ -939,18 +1041,26 @@ class ExpectColumnMeanToBeBetween(Expectation):
 
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_mean = df.agg(F.mean(str(self.column))).first()[0]
+        raw_mean = df.agg(F.mean(str(self.column))).first()[0]
+        col_mean = float(raw_mean) if raw_mean is not None else None
 
         success = True
-        if min_val is not None and col_mean < min_val:
+        if col_mean is None:
             success = False
-        if max_val is not None and col_mean > max_val:
-            success = False
+        else:
+            if min_val is not None and col_mean < min_val:
+                success = False
+            if max_val is not None and col_mean > max_val:
+                success = False
 
         return self._build_result(
             success=success,
-            observed_value=round(col_mean, 4) if col_mean else None,
-            details={"min_value": min_val, "max_value": max_val},
+            observed_value=round(col_mean, 4) if col_mean is not None else None,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_mean": round(col_mean, 4) if col_mean is not None else None,
+            },
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
@@ -994,21 +1104,52 @@ class ExpectColumnStdevToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        col_std = float(df[self.column].std())
+        raw_std = df[self.column].std()
+        col_std = None if pd.isna(raw_std) else float(raw_std)
 
         success = True
-        if min_val is not None and col_std < min_val:
+        if col_std is None:
             success = False
-        if max_val is not None and col_std > max_val:
-            success = False
+        else:
+            if min_val is not None and col_std < min_val:
+                success = False
+            if max_val is not None and col_std > max_val:
+                success = False
 
         return self._build_result(
             success=success,
-            observed_value=round(col_std, 4),
+            observed_value=round(col_std, 4) if col_std is not None else None,
             details={
                 "min_value": min_val,
                 "max_value": max_val,
-                "column_stdev": round(col_std, 4),
+                "column_stdev": round(col_std, 4) if col_std is not None else None,
+            },
+        )
+
+    def _validate_spark(self, df: Any) -> ExpectationResult:
+        from pyspark.sql import functions as F
+
+        min_val = self.kwargs.get("min_value")
+        max_val = self.kwargs.get("max_value")
+        raw_std = df.agg(F.stddev(str(self.column))).first()[0]
+        col_std = float(raw_std) if raw_std is not None else None
+
+        success = True
+        if col_std is None:
+            success = False
+        else:
+            if min_val is not None and col_std < min_val:
+                success = False
+            if max_val is not None and col_std > max_val:
+                success = False
+
+        return self._build_result(
+            success=success,
+            observed_value=round(col_std, 4) if col_std is not None else None,
+            details={
+                "min_value": min_val,
+                "max_value": max_val,
+                "column_stdev": round(col_std, 4) if col_std is not None else None,
             },
         )
 

@@ -112,7 +112,7 @@ class HTMLReportGenerator:
     <div class="quality-score-card {score_class}">
       <div class="qs-label">DATA QUALITY SCORE</div>
       <div class="qs-value">{quality_score}</div>
-      <div class="qs-max">/ 100</div>
+      <div class="qs-max">/ 100 (configured checks)</div>
       <div class="qs-bar-bg"><div class="qs-bar-fill" style="width:{quality_score}%"></div></div>
     </div>
   </div>
@@ -249,9 +249,9 @@ class HTMLReportGenerator:
 </div>
 
 <!-- Hidden data stores for download -->
-<script id="json-data" type="application/json">{html.escape(json_data)}</script>
-<script id="csv-data" type="text/plain">{html.escape(csv_data)}</script>
-<script id="summary-text" type="text/plain">{html.escape(self._build_summary_text(result))}</script>
+<script id="json-data" type="application/json">{html.escape(json_data).replace("</", "<\\/")}</script>
+<script id="csv-data" type="text/plain">{html.escape(csv_data).replace("</", "<\\/")}</script>
+<script id="summary-text" type="text/plain">{html.escape(self._build_summary_text(result)).replace("</", "<\\/")}</script>
 
 <script>
 {self._js()}

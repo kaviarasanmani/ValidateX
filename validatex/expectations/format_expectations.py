@@ -141,9 +141,10 @@ class ExpectColumnValuesToBeValidIpAddress(Expectation):
         col = F.col(str(self.column))
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
-        # Basic IPv4
+        # Support both IPv4 and IPv6 consistently with Pandas and Polars
         ipv4 = r"^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$"
-        unexpected_df = filtered.filter(~col.rlike(ipv4))
+        ipv6 = r"(?i)^([0-9a-f]{1,4}:){7}[0-9a-f]{1,4}$"
+        unexpected_df = filtered.filter(~(col.rlike(ipv4) | col.rlike(ipv6)))
         cnt = unexpected_df.count()
         pct = (cnt / total * 100) if total > 0 else 0.0
         vals = [r[0] for r in unexpected_df.select(self.column).limit(20).collect()]

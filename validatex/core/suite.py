@@ -31,12 +31,16 @@ class ExpectationSuite:
     name: str
     expectations: List[Expectation] = field(default_factory=list)
     meta: Dict[str, Any] = field(default_factory=dict)
+    version: str = "1.0.0"
+    owner: Optional[str] = None
+    contract: Dict[str, Any] = field(default_factory=dict)
 
     def add(
         self,
         expectation_type: str,
         column: Optional[str] = None,
         meta: Optional[Dict[str, Any]] = None,
+        owner: Optional[str] = None,
         **kwargs: Any,
     ) -> "ExpectationSuite":
         """
@@ -51,6 +55,8 @@ class ExpectationSuite:
             Target column name.
         meta : dict, optional
             Arbitrary metadata to attach.
+        owner : str, optional
+            Rule owner (person or team) for governance routing.
         **kwargs
             Additional arguments forwarded to the expectation
             (e.g. ``min_value``, ``regex``).
@@ -61,7 +67,10 @@ class ExpectationSuite:
             ``self`` for fluent chaining.
         """
         exp_cls = get_expectation_class(expectation_type)
-        exp = exp_cls(column=column, kwargs=kwargs, meta=meta or {})
+        effective_meta = dict(meta or {})
+        if owner is not None:
+            effective_meta["owner"] = owner
+        exp = exp_cls(column=column, kwargs=kwargs, meta=effective_meta)
         self.expectations.append(exp)
         return self
 
@@ -84,11 +93,17 @@ class ExpectationSuite:
     # -- serialization -----------------------------------------------------
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d: Dict[str, Any] = {
             "suite_name": self.name,
+            "version": self.version,
             "meta": self.meta,
             "expectations": [e.to_dict() for e in self.expectations],
         }
+        if self.owner:
+            d["owner"] = self.owner
+        if self.contract:
+            d["contract"] = self.contract
+        return d
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
@@ -113,14 +128,20 @@ class ExpectationSuite:
                 data = yaml.safe_load(f)
             else:
                 data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError(f"Invalid suite configuration in {filepath!r}: expected a mapping.")
         return cls.from_dict(data)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ExpectationSuite":
         """Create a suite from a plain dictionary."""
+        meta = data.get("meta", {}) or {}
         suite = cls(
             name=data.get("suite_name", "unnamed_suite"),
-            meta=data.get("meta", {}),
+            meta=meta,
+            version=str(data.get("version", meta.get("version", "1.0.0"))),
+            owner=data.get("owner", meta.get("owner")),
+            contract=data.get("contract", {}) or {},
         )
         for exp_data in data.get("expectations", []):
             exp = Expectation.from_dict(exp_data)

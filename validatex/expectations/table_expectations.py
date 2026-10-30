@@ -14,6 +14,7 @@ import pandas as pd
 
 from validatex.core.expectation import Expectation, register_expectation
 from validatex.core.result import ExpectationResult
+from validatex.core.utils import format_sql_from_clause
 
 # ---------------------------------------------------------------------------
 # 1. expect_table_row_count_to_equal
@@ -62,9 +63,10 @@ class ExpectTableRowCountToEqual(Expectation):
 
         engine, query_or_table = sql_source
         expected = self.kwargs.get("value", 0)
+        from_clause = format_sql_from_clause(query_or_table)
 
         # Wrap the original query/table in a COUNT(*)
-        query = f"SELECT COUNT(*) FROM ({query_or_table}) AS subquery"
+        query = f"SELECT COUNT(*) FROM {from_clause}"  # nosec B608
         with engine.connect() as conn:
             actual = conn.execute(text(query)).scalar()
 
@@ -137,8 +139,9 @@ class ExpectTableRowCountToBeBetween(Expectation):
         engine, query_or_table = sql_source
         min_val = self.kwargs.get("min_value", 0)
         max_val = self.kwargs.get("max_value", float("inf"))
+        from_clause = format_sql_from_clause(query_or_table)
 
-        query = f"SELECT COUNT(*) FROM ({query_or_table}) AS subquery"
+        query = f"SELECT COUNT(*) FROM {from_clause}"  # nosec B608
         with engine.connect() as conn:
             actual = conn.execute(text(query)).scalar()
 

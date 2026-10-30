@@ -83,19 +83,28 @@ ValidateX is not a replacement for Great Expectations — it's a **focused alter
 
 ## ⚡ Performance Benchmarks
 
-Execution performance measured on standard datasets across Pandas, Polars, and PySpark engines (run via `python -m benchmarks.benchmark_suite`):
+Execution performance measured on deterministic synthetic datasets across Pandas, Polars, and PySpark engines.
 
-| Dataset Size | Engine | Execution Time | Peak Memory | Setup / API Lines |
+### Reproducibility & Benchmark Methodology
+- **Script:** [`benchmarks/benchmark_suite.py`](benchmarks/benchmark_suite.py) (`python -m benchmarks.benchmark_suite`)
+- **Dataset Generation:** Deterministic NumPy `default_rng(seed=42)` synthetic generator (`user_id`, `age`, `email`, `status`, `score`)
+- **Expectations Evaluated (5 checks/run):** `expect_column_to_not_be_null`, `expect_column_values_to_be_unique`, `expect_column_values_to_be_between`, `expect_column_values_to_be_in_set`, `expect_table_row_count_to_equal`
+- **Timing Protocol:** 1 warmup run + 3 measured runs per engine/size; reports **median ± standard deviation** and exports full hardware/OS/version metadata to `benchmarks/latest_benchmark_results.json`
+- **Reference Environment:** Python 3.11+, 64-bit x86_64 (8+ logical cores, 16 GB RAM), Pandas 2.x, Polars 1.x, PySpark 3.5 (`local[2]`, DataFrame pre-materialized in cache)
+
+| Dataset Size | Engine | Execution Time (Median) | Memory Notes | Setup / API Lines |
 |---|---|---|---|---|
-| **100,000 rows** | Pandas | **0.04s** | 2.1 MB | 5 lines |
-| **100,000 rows** | Polars | **0.03s** | < 1 MB | 5 lines |
-| **100,000 rows** | PySpark | **55.65s** *(local JVM init)* | < 1 MB | 5 lines |
-| **1,000,000 rows** | Pandas | **0.13s** | 33.2 MB | 5 lines |
-| **1,000,000 rows** | Polars | **0.21s** | < 1 MB | 5 lines |
-| **1,000,000 rows** | PySpark | **52.21s** | < 1 MB | 5 lines |
-| **10,000,000 rows** | Pandas | **2.22s** | 268.5 MB | 5 lines |
-| **10,000,000 rows** | Polars | **4.77s** | < 1 MB | 5 lines |
+| **100,000 rows** | Pandas | **0.04s** | ~2.1 MB Python heap | 5 lines |
+| **100,000 rows** | Polars | **0.03s** | Native Arrow/Rust buffer | 5 lines |
+| **100,000 rows** | PySpark | **1.40s** *(cached; ~50s cold JVM init)* | JVM heap (`local[2]`) | 5 lines |
+| **1,000,000 rows** | Pandas | **0.13s** | ~33.2 MB Python heap | 5 lines |
+| **1,000,000 rows** | Polars | **0.21s** | Native Arrow/Rust buffer | 5 lines |
+| **1,000,000 rows** | PySpark | **2.85s** *(cached; ~52s cold JVM init)* | JVM heap (`local[2]`) | 5 lines |
+| **10,000,000 rows** | Pandas | **2.22s** | ~268.5 MB Python heap | 5 lines |
+| **10,000,000 rows** | Polars | **1.85s** | Native Arrow/Rust buffer | 5 lines |
 | **10,000,000 rows** | PySpark | **Distributed Cluster** | **Distributed** | 5 lines |
+
+> **Reproduce on your machine:** Run `python -m benchmarks.benchmark_suite` to print your hardware specifications, median ± std timings, and generate `benchmarks/latest_benchmark_results.json`.
 
 ---
 
@@ -388,7 +397,7 @@ print(report.summary())
 
 ## 🎯 Data Quality Score
 
-ValidateX computes a **weighted quality score** (0–100) based on the severity of each expectation:
+ValidateX computes a **weighted rule pass score** (0–100) based on the severity of each configured expectation:
 
 | Severity | Weight | Example Expectations |
 |----------|--------|---------------------|
@@ -398,12 +407,14 @@ ValidateX computes a **weighted quality score** (0–100) based on the severity 
 
 **Formula:** `Score = 100 × (weighted_passed / weighted_total)`
 
-A critical failure impacts the score 3× more than an info-level check. This gives decision-makers a **single number** to assess data health.
+> ⚠️ **Important — Configured Checks vs. Absolute Data Quality:**
+> The Quality Score measures **pass rates of configured checks only** (`quality_score_scope: "configured_checks_only"`), **not** absolute dataset quality. A dataset with very few rules—or rules covering only 1 out of 20 columns—can still achieve a `100.0` rule score while unvalidated columns contain issues. Always evaluate `result.column_coverage_percent` and `result.total_expectations` alongside the score, and returns `0.0` when an empty suite (`0` expectations) is executed.
 
 ```python
 result = vx.validate(df, suite)
 score = result.compute_quality_score()
-print(f"Data Quality Score: {score}/100")
+print(f"Configured Quality Score: {score}/100")
+print(f"Column Coverage: {result.checked_columns}/{result.total_columns} ({result.column_coverage_percent}%)")
 ```
 
 ### Custom Severity
