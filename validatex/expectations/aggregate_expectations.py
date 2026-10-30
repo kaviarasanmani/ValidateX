@@ -39,7 +39,7 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
         if col_b is None:
             raise ValueError("column_b is required")
 
-        valid = df[[col_a, col_b]].dropna()
+        valid = df[df[col_a].notna() & df[col_b].notna()]
         total = len(valid)
 
         if or_equal:
@@ -65,12 +65,15 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
 
-        col_a = str(self.kwargs.get("column_a", self.column))
-        col_b = str(self.kwargs.get("column_b"))
+        raw_col_a = self.kwargs.get("column_a", self.column)
+        raw_col_b = self.kwargs.get("column_b")
         or_equal = self.kwargs.get("or_equal", False)
 
-        if col_b is None:
+        if raw_col_b is None:
             raise ValueError("column_b is required")
+
+        col_a = str(raw_col_a)
+        col_b = str(raw_col_b)
 
         valid = df.filter(F.col(col_a).isNotNull() & F.col(col_b).isNotNull())
         total = valid.count()
@@ -93,12 +96,15 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
 
-        col_a = str(self.kwargs.get("column_a", self.column))
-        col_b = str(self.kwargs.get("column_b"))
+        raw_col_a = self.kwargs.get("column_a", self.column)
+        raw_col_b = self.kwargs.get("column_b")
         or_equal = self.kwargs.get("or_equal", False)
 
-        if col_b is None:
+        if raw_col_b is None:
             raise ValueError("column_b is required")
+
+        col_a = str(raw_col_a)
+        col_b = str(raw_col_b)
 
         valid = df.filter(pl.col(col_a).is_not_null() & pl.col(col_b).is_not_null())
         total = len(valid)
@@ -172,7 +178,7 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
         if col_b is None:
             raise ValueError("column_b is required")
 
-        valid = df[[col_a, col_b]].dropna()
+        valid = df[df[col_a].notna() & df[col_b].notna()]
         total = len(valid)
         unexpected_mask = valid[col_a] != valid[col_b]
         unexpected_count = int(unexpected_mask.sum())
@@ -189,11 +195,14 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
 
-        col_a = str(self.kwargs.get("column_a", self.column))
-        col_b = str(self.kwargs.get("column_b"))
+        raw_col_a = self.kwargs.get("column_a", self.column)
+        raw_col_b = self.kwargs.get("column_b")
 
-        if col_b is None:
+        if raw_col_b is None:
             raise ValueError("column_b is required")
+
+        col_a = str(raw_col_a)
+        col_b = str(raw_col_b)
 
         valid = df.filter(F.col(col_a).isNotNull() & F.col(col_b).isNotNull())
         total = valid.count()
@@ -211,11 +220,14 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         import polars as pl
 
-        col_a = str(self.kwargs.get("column_a", self.column))
-        col_b = str(self.kwargs.get("column_b"))
+        raw_col_a = self.kwargs.get("column_a", self.column)
+        raw_col_b = self.kwargs.get("column_b")
 
-        if col_b is None:
+        if raw_col_b is None:
             raise ValueError("column_b is required")
+
+        col_a = str(raw_col_a)
+        col_b = str(raw_col_b)
 
         valid = df.filter(pl.col(col_a).is_not_null() & pl.col(col_b).is_not_null())
         total = len(valid)

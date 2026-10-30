@@ -30,7 +30,9 @@ _PHONE_PATTERN = re.compile(r"^\+?[\d\s\-\(\)]{7,15}$")
 
 
 def _vectorized_match(series: pd.Series, pattern: re.Pattern) -> pd.Series:
-    return series.apply(lambda x: bool(pattern.match(str(x))))
+    if len(series) == 0:
+        return pd.Series(dtype=bool)
+    return series.apply(lambda x: bool(pattern.match(str(x)))).astype(bool)
 
 
 def _build_unexpected(series, unexpected_mask):
@@ -125,7 +127,11 @@ class ExpectColumnValuesToBeValidIpAddress(Expectation):
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         series = df[self.column].dropna().astype(str)
-        matches = series.apply(lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x)))
+        matches = (
+            series.apply(lambda x: bool(_IP4_PATTERN.match(x)) or bool(_IP6_PATTERN.match(x))).astype(bool)
+            if len(series) > 0
+            else pd.Series(dtype=bool)
+        )
         unexpected_mask = ~matches
         total, cnt, pct, vals = _build_unexpected(series, unexpected_mask)
         return self._build_result(

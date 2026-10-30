@@ -64,6 +64,32 @@ class HTMLReportGenerator:
         status_icon = "✅" if result.success else "❌"
         score_class = "score-high" if quality_score >= 90 else "score-mid" if quality_score >= 70 else "score-low"
         run_time_str = result.run_time.strftime("%Y-%m-%d %H:%M:%S") if result.run_time else "N/A"
+        cov_pct = stats.get("column_coverage_percent")
+        checked_cols = stats.get("checked_columns", 0)
+        total_cols = stats.get("total_columns")
+        cov_str = (
+            f"{checked_cols}/{total_cols} ({cov_pct}%)"
+            if cov_pct is not None and total_cols is not None
+            else f"{checked_cols} checked"
+        )
+        suite_version = result.suite_meta.get("version") if isinstance(result.suite_meta, dict) else None
+        suite_owner = result.suite_meta.get("owner") if isinstance(result.suite_meta, dict) else None
+        meta_extras = ""
+        if result.data_source:
+            meta_extras += (
+                f'<div class="meta-item"><span class="meta-key">Data Source</span>'
+                f'<span class="meta-val">{html.escape(str(result.data_source))}</span></div>'
+            )
+        if suite_version:
+            meta_extras += (
+                f'<div class="meta-item"><span class="meta-key">Suite Version</span>'
+                f'<span class="meta-val">{html.escape(str(suite_version))}</span></div>'
+            )
+        if suite_owner:
+            meta_extras += (
+                f'<div class="meta-item"><span class="meta-key">Owner</span>'
+                f'<span class="meta-val">{html.escape(str(suite_owner))}</span></div>'
+            )
 
         # Pre-compute JSON data for download
         json_data = json.dumps(result.to_dict(), indent=2, default=str)
@@ -174,7 +200,11 @@ class HTMLReportGenerator:
       <span class="meta-key">Duration</span>
       <span class="meta-val">{stats.get('run_duration_seconds', 0):.3f}s</span>
     </div>
-    {f'<div class="meta-item"><span class="meta-key">Data Source</span><span class="meta-val">{html.escape(str(result.data_source or ""))}</span></div>' if result.data_source else ""}
+    <div class="meta-item">
+      <span class="meta-key">Column Coverage</span>
+      <span class="meta-val">{html.escape(cov_str)}</span>
+    </div>
+    {meta_extras}
   </div>
 
   <!-- Column Health Summary -->

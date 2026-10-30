@@ -35,7 +35,9 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
         pattern = re.compile(regex)
 
         # We want values that DO NOT match. So values that MATCH are "unexpected"
-        unexpected_mask = series.apply(lambda x: bool(pattern.search(x)))
+        unexpected_mask = (
+            series.apply(lambda x: bool(pattern.search(x))).astype(bool) if total > 0 else pd.Series(dtype=bool)
+        )
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
@@ -114,7 +116,8 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
         # Basic functional email regex
         pattern = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$")
 
-        unexpected_mask = ~series.apply(lambda x: bool(pattern.match(x)))
+        match_mask = series.apply(lambda x: bool(pattern.match(x))).astype(bool) if total > 0 else pd.Series(dtype=bool)
+        unexpected_mask = ~match_mask
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
@@ -192,7 +195,7 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
             except (ValueError, TypeError):
                 return False
 
-        expected_mask = series.apply(is_json)
+        expected_mask = series.apply(is_json).astype(bool) if total > 0 else pd.Series(dtype=bool)
         unexpected_mask = ~expected_mask
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
@@ -281,6 +284,15 @@ class ExpectColumnSumToBeBetween(Expectation):
         max_val = self.kwargs.get("max_value")
 
         series = df[self.column].dropna()
+        total_rows = len(series)
+        if total_rows == 0:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_sum": None},
+            )
+
         actual_sum = float(series.sum())
 
         success = True
@@ -292,7 +304,7 @@ class ExpectColumnSumToBeBetween(Expectation):
         return self._build_result(
             success=success,
             observed_value=actual_sum,
-            element_count=len(series),
+            element_count=total_rows,
             details={"min_value": min_val, "max_value": max_val, "actual_sum": actual_sum},
         )
 
@@ -306,7 +318,12 @@ class ExpectColumnSumToBeBetween(Expectation):
         total_rows = filtered.count()
 
         if total_rows == 0:
-            return self._build_result(success=True, element_count=0)
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_sum": None},
+            )
 
         row = filtered.select(F.sum(str(self.column)).alias("total_sum")).collect()[0]
         actual_sum = float(row["total_sum"]) if row["total_sum"] is not None else 0.0
@@ -331,7 +348,12 @@ class ExpectColumnSumToBeBetween(Expectation):
         series = df[self.column].drop_nulls()
         total_rows = len(series)
         if total_rows == 0:
-            return self._build_result(success=True, element_count=0)
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_sum": None},
+            )
 
         actual_sum = float(series.sum())
 
@@ -364,7 +386,12 @@ class ExpectColumnSumToBeBetween(Expectation):
             actual_sum = float(row.actual_sum) if row and row.actual_sum is not None else 0.0
 
         if total_rows == 0:
-            return self._build_result(success=True, element_count=0)
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_sum": None},
+            )
 
         success = True
         if min_val is not None:
@@ -397,6 +424,15 @@ class ExpectColumnMedianToBeBetween(Expectation):
         max_val = self.kwargs.get("max_value")
 
         series = df[self.column].dropna()
+        total_rows = len(series)
+        if total_rows == 0:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_median": None},
+            )
+
         actual_median = float(series.median())
 
         success = True
@@ -408,7 +444,7 @@ class ExpectColumnMedianToBeBetween(Expectation):
         return self._build_result(
             success=success,
             observed_value=actual_median,
-            element_count=len(series),
+            element_count=total_rows,
             details={"min_value": min_val, "max_value": max_val, "actual_median": actual_median},
         )
 
@@ -422,7 +458,12 @@ class ExpectColumnMedianToBeBetween(Expectation):
         total_rows = filtered.count()
 
         if total_rows == 0:
-            return self._build_result(success=True, element_count=0)
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_median": None},
+            )
 
         # Approximate median using approxQuantile in PySpark
         actual_median = filtered.approxQuantile(str(self.column), [0.5], 0.001)[0]
@@ -448,7 +489,12 @@ class ExpectColumnMedianToBeBetween(Expectation):
         series = df[self.column].drop_nulls()
         total_rows = len(series)
         if total_rows == 0:
-            return self._build_result(success=True, element_count=0)
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"min_value": min_val, "max_value": max_val, "actual_median": None},
+            )
 
         actual_median = float(series.median())
 
@@ -486,7 +532,7 @@ class ExpectColumnValueLengthsToEqual(Expectation):
         series = df[self.column].dropna().astype(str)
         total = len(series)
 
-        lengths = series.apply(len)
+        lengths = series.apply(len) if total > 0 else pd.Series(dtype=int)
         unexpected_mask = lengths != value
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
