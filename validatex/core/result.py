@@ -102,11 +102,15 @@ def to_native(value: Any) -> Any:
 
     Professional tools NEVER leak internal types like ``np.int64(20)``.
     """
+    import math
+
     if value is None:
         return None
     if isinstance(value, (bool,)):
         return bool(value)
-    if isinstance(value, (int, float, str)):
+    if isinstance(value, float):
+        return None if math.isnan(value) else value
+    if isinstance(value, (int, str)):
         return value
     # numpy scalar types
     try:
@@ -115,7 +119,8 @@ def to_native(value: Any) -> Any:
         if isinstance(value, np.integer):
             return int(value)
         if isinstance(value, np.floating):
-            return float(value)
+            f_val = float(value)
+            return None if math.isnan(f_val) else f_val
         if isinstance(value, np.bool_):
             return bool(value)
         if isinstance(value, np.ndarray):

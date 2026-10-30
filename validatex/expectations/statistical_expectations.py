@@ -47,6 +47,14 @@ class ExpectColumnQuantileValuesToBeBetween(Expectation):
 
         series = df[self.column].dropna()
         total = len(series)
+        if total == 0:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"quantile_checks": [], "failed_quantiles": list(quantiles)},
+            )
+
         computed = series.quantile(quantiles)
 
         failures = []
@@ -88,7 +96,15 @@ class ExpectColumnQuantileValuesToBeBetween(Expectation):
         col_name = str(self.column)
         filtered = df.filter(F.col(col_name).isNotNull())
         total = filtered.count()
-        computed = filtered.approxQuantile(col_name, quantiles, 0.0001) if total > 0 else [0.0] * len(quantiles)
+        if total == 0:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"quantile_checks": [], "failed_quantiles": list(quantiles)},
+            )
+
+        computed = filtered.approxQuantile(col_name, quantiles, 0.0001)
 
         failures = []
         rows = []
@@ -126,6 +142,14 @@ class ExpectColumnQuantileValuesToBeBetween(Expectation):
 
         series = df[self.column].drop_nulls()
         total = len(series)
+        if total == 0:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=0,
+                details={"quantile_checks": [], "failed_quantiles": list(quantiles)},
+            )
+
         computed = [float(series.quantile(q)) for q in quantiles]
 
         failures = []
@@ -169,7 +193,7 @@ class ExpectColumnNullPercentageToBeLessThan(Expectation):
     expectation_type: str = field(init=False, default="expect_column_null_percentage_to_be_less_than")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
-        threshold: float = float(self.kwargs.get("threshold", 0))
+        threshold: float = float(self.kwargs.get("threshold", self.kwargs.get("max_pct", 0)))
         total = len(df)
         null_count = int(df[self.column].isnull().sum())
         pct = (null_count / total * 100) if total > 0 else 0.0
@@ -185,7 +209,7 @@ class ExpectColumnNullPercentageToBeLessThan(Expectation):
     def _validate_spark(self, df: Any) -> ExpectationResult:
         from pyspark.sql import functions as F
 
-        threshold: float = float(self.kwargs.get("threshold", 0))
+        threshold: float = float(self.kwargs.get("threshold", self.kwargs.get("max_pct", 0)))
         col = F.col(str(self.column))
         total = df.count()
         null_count = df.filter(col.isNull()).count()
@@ -199,7 +223,7 @@ class ExpectColumnNullPercentageToBeLessThan(Expectation):
         )
 
     def _validate_polars(self, df: Any) -> ExpectationResult:
-        threshold: float = float(self.kwargs.get("threshold", 0))
+        threshold: float = float(self.kwargs.get("threshold", self.kwargs.get("max_pct", 0)))
         total = len(df)
         null_count = int(df[self.column].is_null().sum())
         pct = (null_count / total * 100) if total > 0 else 0.0
@@ -215,7 +239,7 @@ class ExpectColumnNullPercentageToBeLessThan(Expectation):
         from sqlalchemy import text
 
         engine, query_or_table = sql_source
-        threshold: float = float(self.kwargs.get("threshold", 0))
+        threshold: float = float(self.kwargs.get("threshold", self.kwargs.get("max_pct", 0)))
         col = quote_sql_identifier(self.column)
         from_clause = format_sql_from_clause(query_or_table)
         query = (
@@ -263,13 +287,31 @@ class ExpectColumnCorrelationToBeBetween(Expectation):
         max_val = self.kwargs.get("max_value", 1.0)
 
         pair = df[[self.column, other_col]].dropna()
-        actual_corr = float(pair[self.column].corr(pair[other_col]))
+        total = len(pair)
+        if total < 2:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=total,
+                details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
+            )
+
+        raw_corr = pair[self.column].corr(pair[other_col])
+        if pd.isna(raw_corr):
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=total,
+                details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
+            )
+
+        actual_corr = float(raw_corr)
         success = min_val <= actual_corr <= max_val
 
         return self._build_result(
             success=success,
             observed_value=round(actual_corr, 6),
-            element_count=len(pair),
+            element_count=total,
             details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
         )
 
@@ -280,9 +322,26 @@ class ExpectColumnCorrelationToBeBetween(Expectation):
         min_val = self.kwargs.get("min_value", -1.0)
         max_val = self.kwargs.get("max_value", 1.0)
 
-        actual_corr = float(df.stat.corr(str(self.column), str(other_col)))
-        success = min_val <= actual_corr <= max_val
         total = df.filter(F.col(str(self.column)).isNotNull() & F.col(str(other_col)).isNotNull()).count()
+        if total < 2:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=total,
+                details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
+            )
+
+        raw_corr = df.stat.corr(str(self.column), str(other_col))
+        if raw_corr is None or pd.isna(raw_corr):
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=total,
+                details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
+            )
+
+        actual_corr = float(raw_corr)
+        success = min_val <= actual_corr <= max_val
 
         return self._build_result(
             success=success,
@@ -299,16 +358,31 @@ class ExpectColumnCorrelationToBeBetween(Expectation):
         max_val = self.kwargs.get("max_value", 1.0)
 
         pair = df.filter(pl.col(self.column).is_not_null() & pl.col(other_col).is_not_null())
-        if len(pair) == 0:
-            return self._build_result(success=False, observed_value=None, element_count=0)
+        total = len(pair)
+        if total < 2:
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=total,
+                details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
+            )
 
-        actual_corr = float(pair.select(pl.corr(self.column, other_col)).to_series()[0])
+        raw_corr = pair.select(pl.corr(self.column, other_col)).to_series()[0]
+        if raw_corr is None or pd.isna(raw_corr):
+            return self._build_result(
+                success=False,
+                observed_value=None,
+                element_count=total,
+                details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
+            )
+
+        actual_corr = float(raw_corr)
         success = min_val <= actual_corr <= max_val
 
         return self._build_result(
             success=success,
             observed_value=round(actual_corr, 6),
-            element_count=len(pair),
+            element_count=total,
             details={"corr_with": other_col, "min_value": min_val, "max_value": max_val},
         )
 
@@ -622,8 +696,20 @@ class ExpectColumnValuesToBeInRangeOfStdDevs(Expectation):
         series = df[self.column].dropna()
         total = len(series)
 
-        mean = series.mean()
-        std = series.std()
+        if total < 2:
+            mean_val = round(float(series.mean()), 4) if total == 1 else None
+            return self._build_result(
+                success=True,
+                observed_value={"mean": mean_val, "std": None},
+                element_count=total,
+                unexpected_count=0,
+                unexpected_percent=0.0,
+                unexpected_values=[],
+                details={"n_std_devs": n_std, "lower_bound": None, "upper_bound": None},
+            )
+
+        mean = float(series.mean())
+        std = float(series.std())
         lower = mean - n_std * std
         upper = mean + n_std * std
 
@@ -654,6 +740,19 @@ class ExpectColumnValuesToBeInRangeOfStdDevs(Expectation):
         filtered = df.filter(col.isNotNull())
         total = filtered.count()
 
+        if total < 2:
+            mean_raw = filtered.select(F.mean(col)).first()[0] if total == 1 else None
+            mean_val = round(float(mean_raw), 4) if mean_raw is not None else None
+            return self._build_result(
+                success=True,
+                observed_value={"mean": mean_val, "std": None},
+                element_count=total,
+                unexpected_count=0,
+                unexpected_percent=0.0,
+                unexpected_values=[],
+                details={"n_std_devs": n_std, "lower_bound": None, "upper_bound": None},
+            )
+
         stats = filtered.select(F.mean(col).alias("mean"), F.stddev(col).alias("std")).collect()[0]
 
         mean = float(stats["mean"])
@@ -680,6 +779,18 @@ class ExpectColumnValuesToBeInRangeOfStdDevs(Expectation):
         n_std = float(self.kwargs.get("n_std_devs", 3.0))
         series = df[self.column].drop_nulls()
         total = len(series)
+
+        if total < 2:
+            mean_val = round(float(series.mean()), 4) if total == 1 else None
+            return self._build_result(
+                success=True,
+                observed_value={"mean": mean_val, "std": None},
+                element_count=total,
+                unexpected_count=0,
+                unexpected_percent=0.0,
+                unexpected_values=[],
+                details={"n_std_devs": n_std, "lower_bound": None, "upper_bound": None},
+            )
 
         mean = float(series.mean())
         std = float(series.std())

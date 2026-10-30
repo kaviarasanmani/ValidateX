@@ -190,29 +190,29 @@ class ExpectColumnValuesToBeUnique(Expectation):
         col = quote_sql_identifier(self.column)
         from_clause = format_sql_from_clause(query_or_table)
         query = (
-            f"SELECT COUNT({col}) as total, "  # nosec B608
-            f"COUNT(DISTINCT {col}) as distinct_count "
-            f"FROM {from_clause}"
+            f"SELECT COALESCE(SUM(cnt), 0) AS total, "  # nosec B608
+            f"COUNT(*) AS distinct_count, "
+            f"COALESCE(SUM(CASE WHEN cnt > 1 THEN cnt ELSE 0 END), 0) AS dup_count "
+            f"FROM (SELECT {col} AS val, COUNT(*) AS cnt FROM {from_clause} GROUP BY {col}) AS grp"
         )
         dup_query = (
             f"SELECT {col} AS val, COUNT(*) AS cnt "  # nosec B608
             f"FROM {from_clause} "
-            f"WHERE {col} IS NOT NULL "
             f"GROUP BY {col} HAVING COUNT(*) > 1"
         )
         with engine.connect() as conn:
             row = conn.execute(text(query)).fetchone()
             total = int(row.total) if row and row.total else 0
             distinct = int(row.distinct_count) if row and row.distinct_count else 0
+            dup_count = int(row.dup_count) if row and row.dup_count else 0
             dup_rows = conn.execute(text(dup_query)).fetchall()
 
-        dup_count = sum(int(r.cnt) for r in dup_rows) if dup_rows else (total - distinct)
         dup_values = [r.val for r in dup_rows[:20]] if dup_rows else []
         pct = (dup_count / total * 100) if total > 0 else 0.0
 
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{distinct} unique values out of {total}",
+            observed_value=f"{distinct} unique out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
@@ -779,12 +779,23 @@ class ExpectColumnValuesToBeDateutilParseable(Expectation):
     expectation_type: str = field(init=False, default="expect_column_values_to_be_dateutil_parseable")
 
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
+        import dateutil.parser
+
         series = df[self.column].dropna()
         total = len(series)
-        converted = pd.to_datetime(series, errors="coerce")
-        null_after = int(converted.isnull().sum())
+
+        def check_date(x: Any) -> bool:
+            try:
+                dateutil.parser.parse(str(x))
+                return True
+            except Exception:
+                return False
+
+        parsed_mask = series.apply(check_date) if total > 0 else pd.Series(dtype=bool)
+        unexpected_mask = ~parsed_mask
+        null_after = int(unexpected_mask.sum())
         pct = (null_after / total * 100) if total > 0 else 0.0
-        bad_vals = series[converted.isnull()].tolist()[:20]
+        bad_vals = series[unexpected_mask].tolist()[:20]
 
         return self._build_result(
             success=(null_after == 0),
@@ -994,8 +1005,9 @@ class ExpectColumnMaxToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        raw_max = df[self.column].max()
-        col_max = None if pd.isna(raw_max) else float(raw_max)
+        series = df[self.column].dropna()
+        raw_max = series.max() if len(series) > 0 else None
+        col_max = None if raw_max is None or pd.isna(raw_max) else float(raw_max)
 
         success = True
         if col_max is None:
@@ -1038,7 +1050,8 @@ class ExpectColumnMaxToBeBetween(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        val = df[self.column].max()
+        series = df[self.column].drop_nulls()
+        val = series.max() if len(series) > 0 else None
         col_max = float(val) if val is not None else None
 
         success = True
@@ -1101,8 +1114,9 @@ class ExpectColumnMinToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        raw_min = df[self.column].min()
-        col_min = None if pd.isna(raw_min) else float(raw_min)
+        series = df[self.column].dropna()
+        raw_min = series.min() if len(series) > 0 else None
+        col_min = None if raw_min is None or pd.isna(raw_min) else float(raw_min)
 
         success = True
         if col_min is None:
@@ -1145,7 +1159,8 @@ class ExpectColumnMinToBeBetween(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        val = df[self.column].min()
+        series = df[self.column].drop_nulls()
+        val = series.min() if len(series) > 0 else None
         col_min = float(val) if val is not None else None
 
         success = True
@@ -1208,8 +1223,9 @@ class ExpectColumnMeanToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        raw_mean = df[self.column].mean()
-        col_mean = None if pd.isna(raw_mean) else float(raw_mean)
+        series = df[self.column].dropna()
+        raw_mean = series.mean() if len(series) > 0 else None
+        col_mean = None if raw_mean is None or pd.isna(raw_mean) else float(raw_mean)
 
         success = True
         if col_mean is None:
@@ -1260,7 +1276,8 @@ class ExpectColumnMeanToBeBetween(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        val = df[self.column].mean()
+        series = df[self.column].drop_nulls()
+        val = series.mean() if len(series) > 0 else None
         col_mean = float(val) if val is not None else None
 
         success = True
@@ -1331,8 +1348,9 @@ class ExpectColumnStdevToBeBetween(Expectation):
     def _validate_pandas(self, df: pd.DataFrame) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        raw_std = df[self.column].std()
-        col_std = None if pd.isna(raw_std) else float(raw_std)
+        series = df[self.column].dropna()
+        raw_std = series.std() if len(series) >= 2 else None
+        col_std = None if raw_std is None or pd.isna(raw_std) else float(raw_std)
 
         success = True
         if col_std is None:
@@ -1383,7 +1401,8 @@ class ExpectColumnStdevToBeBetween(Expectation):
     def _validate_polars(self, df: Any) -> ExpectationResult:
         min_val = self.kwargs.get("min_value")
         max_val = self.kwargs.get("max_value")
-        val = df[self.column].std()
+        series = df[self.column].drop_nulls()
+        val = series.std() if len(series) >= 2 else None
         col_std = float(val) if val is not None else None
 
         success = True

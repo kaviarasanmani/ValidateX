@@ -46,7 +46,7 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
         if when == "equal":
             condition_mask = df[cond_col] == cond_val
         else:
-            condition_mask = df[cond_col] != cond_val
+            condition_mask = df[cond_col].notna() & (df[cond_col] != cond_val)
 
         # Rows where condition is TRUE but target column is NOT null
         scoped = df[condition_mask]
@@ -100,7 +100,7 @@ class ExpectColumnValuesToBeNullWhen(Expectation):
         if when == "equal":
             condition_mask = df[cond_col] == cond_val
         else:
-            condition_mask = df[cond_col] != cond_val
+            condition_mask = df[cond_col].is_not_null() & (df[cond_col] != cond_val)
 
         scoped = df.filter(condition_mask)
         total = len(scoped)
@@ -179,7 +179,7 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
         if when == "equal":
             condition_mask = df[cond_col] == cond_val
         else:
-            condition_mask = df[cond_col] != cond_val
+            condition_mask = df[cond_col].notna() & (df[cond_col] != cond_val)
 
         scoped = df[condition_mask]
         total = len(scoped)
@@ -228,7 +228,7 @@ class ExpectColumnValuesToBeNotNullWhen(Expectation):
         if when == "equal":
             condition_mask = df[cond_col] == cond_val
         else:
-            condition_mask = df[cond_col] != cond_val
+            condition_mask = df[cond_col].is_not_null() & (df[cond_col] != cond_val)
 
         scoped = df.filter(condition_mask)
         total = len(scoped)
