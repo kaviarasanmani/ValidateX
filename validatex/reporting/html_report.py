@@ -68,6 +68,9 @@ class HTMLReportGenerator:
         # Pre-compute JSON data for download
         json_data = json.dumps(result.to_dict(), indent=2, default=str)
         csv_data = self._results_to_csv(result.results)
+        safe_json_data = html.escape(json_data).replace("</", "<\\/")
+        safe_csv_data = html.escape(csv_data).replace("</", "<\\/")
+        safe_summary_text = html.escape(self._build_summary_text(result)).replace("</", "<\\/")
 
         return f"""<!DOCTYPE html>
 <html lang="en">
@@ -249,9 +252,9 @@ class HTMLReportGenerator:
 </div>
 
 <!-- Hidden data stores for download -->
-<script id="json-data" type="application/json">{html.escape(json_data).replace("</", "<\\/")}</script>
-<script id="csv-data" type="text/plain">{html.escape(csv_data).replace("</", "<\\/")}</script>
-<script id="summary-text" type="text/plain">{html.escape(self._build_summary_text(result)).replace("</", "<\\/")}</script>
+<script id="json-data" type="application/json">{safe_json_data}</script>
+<script id="csv-data" type="text/plain">{safe_csv_data}</script>
+<script id="summary-text" type="text/plain">{safe_summary_text}</script>
 
 <script>
 {self._js()}

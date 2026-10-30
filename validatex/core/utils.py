@@ -93,4 +93,3 @@ def validate_webhook_url(url: str) -> str:
     if parsed.scheme not in ("https", "http") or not parsed.netloc:
         raise ValueError(f"Invalid or unsafe webhook URL scheme (must be https:// or http://): {url!r}")
     return url.strip()
-
