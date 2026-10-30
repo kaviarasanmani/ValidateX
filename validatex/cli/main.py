@@ -525,6 +525,119 @@ def history(store, dataset, limit, failures, show_schema):
         console.print(f"  Trend: [bold]{trend.direction}[/bold] (mean {trend.mean}, latest {trend.latest})")
 
 
+# ── dbt ───────────────────────────────────────────────────────────────────
+
+
+@cli.group()
+def dbt():
+    """Import/export dbt schema.yml files and run ValidateX checks on dbt models."""
+
+
+@dbt.command("import-schema")
+@click.argument("schema_path")
+@click.option("--output-dir", "-o", default="contracts", help="Directory to write generated DataContract YAML files.")
+def dbt_import_schema(schema_path, output_dir):
+    """Convert models in a dbt schema.yml into ValidateX DataContract YAML files."""
+    from validatex.integrations.dbt import contracts_from_dbt_schema
+
+    contracts = contracts_from_dbt_schema(schema_path)
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for c in contracts:
+        target = c.save(out_dir / f"{c.name}.yaml")
+        console.print(f"[bold green]✓[/bold green] Imported {c.name} -> {target}")
+
+
+@dbt.command("export-schema")
+@click.argument("contract_path")
+@click.option("--output", "-o", required=True, help="Output dbt schema.yml file path.")
+def dbt_export_schema(contract_path, output):
+    """Export a ValidateX DataContract (or directory of contracts) to a dbt schema.yml file."""
+    from validatex.contracts import DataContract
+    from validatex.integrations.dbt import save_dbt_schema
+
+    p = Path(contract_path)
+    if p.is_dir():
+        contracts = [DataContract.load(f) for f in sorted(p.glob("*.y*ml"))]
+    else:
+        contracts = [DataContract.load(p)]
+    target = save_dbt_schema(contracts, output)
+    console.print(f"[bold green]✓[/bold green] Exported {len(contracts)} model(s) -> {target}")
+
+
+@dbt.command("test")
+@click.option("--schema", "-s", "schema_path", required=True, help="Path to dbt schema.yml or manifest.json.")
+@click.option("--db", required=True, help="SQLAlchemy database URL (e.g. sqlite:///warehouse.db).")
+@click.option("--model", "-m", "models", multiple=True, help="Optional model name(s) to validate.")
+@click.option("--store", default=None, help="Optional SQLite RunStore path to record validation runs.")
+def dbt_test(schema_path, db, models, store):
+    """Validate materialized dbt models via Push-Down SQL against their dbt schema.yml rules."""
+    from validatex.integrations.dbt import run_dbt_validations
+
+    results = run_dbt_validations(
+        schema_path,
+        db,
+        models=list(models) if models else None,
+        engine="sql",
+        store=store,
+    )
+    all_ok = True
+    for name, res in results.items():
+        status = "[bold green]PASS[/bold green]" if res.success else "[bold red]FAIL[/bold red]"
+        console.print(f"  {status} {name} (score: {res.quality_score}/100)")
+        if not res.success:
+            all_ok = False
+    sys.exit(0 if all_ok else 1)
+
+
+# ── dashboard ─────────────────────────────────────────────────────────────
+
+
+@cli.command()
+@click.option("--store", "-s", default=None, help="RunStore SQLite path (default ./.validatex/runs.db).")
+@click.option("--registry", "-r", default="contracts", help="ContractRegistry directory path.")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host interface to bind.")
+@click.option("--port", "-p", default=8501, show_default=True, help="Port to serve dashboard on.")
+@click.option("--export", "-o", "export_path", default=None, help="Export static HTML dashboard to file and exit.")
+@click.option("--limit", "-n", default=30, show_default=True, help="Max runs per dataset to load.")
+def dashboard(store, registry, host, port, export_path, limit):
+    """Launch the multi-dataset Web Dashboard or export a static HTML snapshot."""
+    from validatex.dashboard import export_dashboard_html, serve_dashboard
+
+    if export_path:
+        out = export_dashboard_html(export_path, store=store, registry=registry, limit=limit)
+        console.print(f"[bold green]✓[/bold green] Dashboard exported to [cyan]{out}[/cyan]")
+        return
+    console.print(
+        f"[bold green]🚀 ValidateX Dashboard running at[/bold green] [cyan]http://{host}:{port}[/cyan] (Ctrl+C to stop)"
+    )
+    serve_dashboard(host=host, port=port, store=store, registry=registry, limit=limit)
+
+
+# ── migrate ───────────────────────────────────────────────────────────────
+
+
+@cli.command()
+@click.option("--from-ge", "ge_path", required=True, help="Path to Great Expectations JSON/YAML suite.")
+@click.option("--output", "-o", required=True, help="Output YAML/JSON path.")
+@click.option("--as-contract", is_flag=True, help="Convert into a ValidateX DataContract instead of ExpectationSuite.")
+def migrate(ge_path, output, as_contract):
+    """Migrate a Great Expectations suite to a ValidateX suite or DataContract."""
+    from validatex.migrations import migrate_ge_suite, migrate_ge_to_contract
+
+    if as_contract:
+        contract, report = migrate_ge_to_contract(ge_path)
+        contract.save(output)
+    else:
+        suite, report = migrate_ge_suite(ge_path)
+        suite.save(output)
+    console.print(
+        f"[bold green]✓[/bold green] Migrated {report.migrated_count}/{report.total_ge_expectations} expectations -> [cyan]{output}[/cyan]"
+    )
+    if report.skipped_expectations:
+        console.print(f"  [yellow]Skipped unsupported: {', '.join(report.skipped_expectations)}[/yellow]")
+
+
 # ── helpers ───────────────────────────────────────────────────────────────
 
 

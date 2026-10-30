@@ -1,8 +1,8 @@
 """
-ValidateX - A powerful data quality validation framework.
+ValidateX - A powerful data quality validation, data contract, and observability framework.
 
 ValidateX provides a comprehensive suite of tools for validating,
-profiling, and monitoring data quality across Pandas and PySpark DataFrames.
+governing, profiling, and monitoring data quality across Pandas, Polars, PySpark, and Push-Down SQL.
 
 Usage:
     >>> import validatex as vx
@@ -48,6 +48,26 @@ from validatex.observability import (
     check_run_freshness,
     detect_volume_anomaly,
 )
+from validatex.integrations.dbt import (
+    contract_from_dbt_model,
+    contracts_from_dbt_schema,
+    contracts_to_dbt_schema,
+    parse_dbt_manifest,
+    run_dbt_validations,
+    save_dbt_schema,
+)
+from validatex.dashboard import (
+    build_dashboard_payload,
+    create_wsgi_app,
+    export_dashboard_html,
+    render_dashboard_html,
+    serve_dashboard,
+)
+from validatex.migrations import (
+    MigrationReport,
+    migrate_ge_suite,
+    migrate_ge_to_contract,
+)
 
 __all__ = [
     "Expectation",
@@ -74,4 +94,18 @@ __all__ = [
     "check_freshness",
     "check_run_freshness",
     "detect_volume_anomaly",
+    "contract_from_dbt_model",
+    "contracts_from_dbt_schema",
+    "contracts_to_dbt_schema",
+    "parse_dbt_manifest",
+    "run_dbt_validations",
+    "save_dbt_schema",
+    "build_dashboard_payload",
+    "create_wsgi_app",
+    "export_dashboard_html",
+    "render_dashboard_html",
+    "serve_dashboard",
+    "MigrationReport",
+    "migrate_ge_suite",
+    "migrate_ge_to_contract",
 ]
