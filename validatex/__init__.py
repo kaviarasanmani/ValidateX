@@ -33,6 +33,21 @@ from validatex.core.validator import Validator, validate
 from validatex.profiler.profiler import DataProfiler
 from validatex.drift.detector import DriftDetector
 from validatex.drift.report import DriftReport
+from validatex.contracts import (
+    ContractDiff,
+    ContractRegistry,
+    ContractResult,
+    DataContract,
+    compare_contracts,
+    validate_contract,
+)
+from validatex.storage.run_store import RunStore
+from validatex.observability import (
+    AlertPolicy,
+    check_freshness,
+    check_run_freshness,
+    detect_volume_anomaly,
+)
 
 __all__ = [
     "Expectation",
@@ -48,4 +63,15 @@ __all__ = [
     "SEVERITY_INFO",
     "DriftDetector",
     "DriftReport",
+    "DataContract",
+    "ContractRegistry",
+    "ContractResult",
+    "ContractDiff",
+    "compare_contracts",
+    "validate_contract",
+    "RunStore",
+    "AlertPolicy",
+    "check_freshness",
+    "check_run_freshness",
+    "detect_volume_anomaly",
 ]

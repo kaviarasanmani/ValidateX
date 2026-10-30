@@ -66,6 +66,10 @@ class Validator:
         data: Any,
         data_source: Optional[str] = None,
         sql_engine: Optional[Any] = None,
+        run_name: Optional[str] = None,
+        dataset_name: Optional[str] = None,
+        store: Optional[Any] = None,
+        alert_policy: Optional[Any] = None,
     ) -> ValidationResult:
         """
         Execute every expectation in the suite against *data*.
@@ -78,6 +82,15 @@ class Validator:
             A label describing where the data came from.
         sql_engine : Any, optional
             SQLAlchemy engine instance when ``engine="sql"``.
+        run_name : str, optional
+            A label for this execution (e.g. ``"daily_customer_validation"``), stored with the run.
+        dataset_name : str, optional
+            Logical dataset identifier used to group history (defaults to *data_source*, then the suite name).
+        store : RunStore | str | bool, optional
+            Record the run for historical monitoring: a ``RunStore``, a SQLite path, or ``True`` for the default
+            ``./.validatex/runs.db``. Recording also captures the row count and schema.
+        alert_policy : AlertPolicy, optional
+            Evaluate threshold-based alerts after the run; triggered alerts are returned in ``result.alerts``.
 
         Returns
         -------
@@ -116,6 +129,18 @@ class Validator:
             result.results.append(exp_result)
         result.run_duration_seconds = time.perf_counter() - start
         result.compute_statistics()
+
+        from validatex.observability.recorder import record_run
+
+        record_run(
+            result,
+            target_data,
+            self.engine,
+            run_name=run_name,
+            dataset_name=dataset_name,
+            store=store,
+            alert_policy=alert_policy,
+        )
         return result
 
 
@@ -125,6 +150,10 @@ def validate(
     engine: str = "pandas",
     data_source: Optional[str] = None,
     sql_engine: Optional[Any] = None,
+    run_name: Optional[str] = None,
+    dataset_name: Optional[str] = None,
+    store: Optional[Any] = None,
+    alert_policy: Optional[Any] = None,
 ) -> ValidationResult:
     """
     Convenience function to validate *data* against a *suite*.
@@ -138,11 +167,30 @@ def validate(
     data_source : str, optional
     sql_engine : Any, optional
         SQLAlchemy engine connection when ``engine="sql"``.
+    run_name : str, optional
+        Label for this execution, stored with the run history.
+    dataset_name : str, optional
+        Logical dataset identifier used to group history.
+    store : RunStore | str | bool, optional
+        Record this run for historical monitoring (``True`` = ``./.validatex/runs.db``).
+    alert_policy : AlertPolicy, optional
+        Evaluate threshold-based alerts; results land in ``result.alerts``.
 
     Returns
     -------
     ValidationResult
+
+    Examples
+    --------
+    >>> result = vx.validate(df, suite, run_name="daily_customer_validation", store=True)
+    >>> print(result.quality_score)
     """
     return Validator(suite, engine=engine, sql_engine=sql_engine).run(
-        data, data_source=data_source, sql_engine=sql_engine
+        data,
+        data_source=data_source,
+        sql_engine=sql_engine,
+        run_name=run_name,
+        dataset_name=dataset_name,
+        store=store,
+        alert_policy=alert_policy,
     )

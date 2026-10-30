@@ -319,10 +319,21 @@ class ValidationResult:
     statistics: Dict[str, Any] = field(default_factory=dict)
     total_columns: Optional[int] = None
     suite_meta: Dict[str, Any] = field(default_factory=dict)
+    run_name: Optional[str] = None
+    dataset_name: Optional[str] = None
+    run_id: Optional[int] = None
+    row_count: Optional[int] = None
+    schema: Optional[Dict[str, str]] = None
+    alerts: List[Any] = field(default_factory=list)
 
     def __post_init__(self):
         if self.run_time is None:
             self.run_time = datetime.now()
+
+    @property
+    def quality_score(self) -> float:
+        """Weighted rule pass score (0-100); see :meth:`compute_quality_score`."""
+        return self.compute_quality_score()
 
     @property
     def success(self) -> bool:
@@ -489,6 +500,13 @@ class ValidationResult:
             "column_health": [c.to_dict() for c in self.column_health()],
             "data_source": self.data_source,
             "engine": self.engine,
+            "run": {
+                "run_id": self.run_id,
+                "run_name": self.run_name,
+                "dataset_name": self.dataset_name,
+                "row_count": self.row_count,
+            },
+            "alerts": [a.to_dict() for a in self.alerts],
             "results": [r.to_dict() for r in self.results],
         }
 
