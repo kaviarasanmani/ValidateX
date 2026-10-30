@@ -81,6 +81,11 @@ class ContractOwner:
     def to_dict(self) -> Dict[str, Any]:
         return {k: v for k, v in (("team", self.team), ("steward", self.steward), ("contact", self.contact)) if v}
 
+    from_dict = from_value
+
+    def is_empty(self) -> bool:
+        return not (self.team or self.steward or self.contact)
+
 
 @dataclass
 class SchemaField:
@@ -183,6 +188,11 @@ class Thresholds:
             d["max_warning_failures"] = self.max_warning_failures
         return d
 
+    def is_empty(self) -> bool:
+        return (
+            self.minimum_quality_score is None and self.max_critical_failures == 0 and self.max_warning_failures is None
+        )
+
 
 # ---------------------------------------------------------------------------
 # DataContract
@@ -222,7 +232,28 @@ class DataContract:
     def create(cls, name: str, version: Any = "1.0.0", **kwargs: Any) -> "DataContract":
         """Create an empty contract to be filled with :meth:`add_field` / :meth:`add_rule`."""
         owner = kwargs.pop("owner", None)
-        return cls(name=name, version=normalize_version(version), owner=ContractOwner.from_value(owner), **kwargs)
+        team = kwargs.pop("team", None)
+        steward = kwargs.pop("steward", None)
+        contact = kwargs.pop("contact", None)
+        owner_obj = ContractOwner.from_value(owner)
+        if team is not None:
+            owner_obj.team = team
+        if steward is not None:
+            owner_obj.steward = steward
+        if contact is not None:
+            owner_obj.contact = contact
+        thresholds = kwargs.pop("thresholds", None)
+        mqs = kwargs.pop("minimum_quality_score", None)
+        mcf = kwargs.pop("max_critical_failures", None)
+        mwf = kwargs.pop("max_warning_failures", None)
+        thresh_obj = Thresholds.from_dict(thresholds) if isinstance(thresholds, dict) else (thresholds or Thresholds())
+        if mqs is not None:
+            thresh_obj.minimum_quality_score = float(mqs)
+        if mcf is not None:
+            thresh_obj.max_critical_failures = int(mcf)
+        if mwf is not None:
+            thresh_obj.max_warning_failures = int(mwf)
+        return cls(name=name, version=normalize_version(version), owner=owner_obj, thresholds=thresh_obj, **kwargs)
 
     def add_field(
         self, name: str, type: str = "any", nullable: bool = True, description: Optional[str] = None

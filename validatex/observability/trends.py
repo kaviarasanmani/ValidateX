@@ -52,6 +52,12 @@ class QualityTrend:
         return round(sum(self.scores) / len(self.scores), 2) if self.points else None
 
     @property
+    def delta_from_mean(self) -> Optional[float]:
+        if self.latest is None or self.mean is None:
+            return None
+        return round(self.latest - self.mean, 2)
+
+    @property
     def minimum(self) -> Optional[float]:
         return min(self.scores) if self.points else None
 

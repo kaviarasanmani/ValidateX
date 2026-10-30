@@ -524,7 +524,7 @@ class ValidationResult:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(self.to_json())
 
-    def to_html(self, filepath: str) -> None:
+    def to_html(self, filepath: str, store: Any = None, history_limit: int = 30) -> None:
         """Generate a rich HTML report and write to *filepath*."""
         import os
 
@@ -534,14 +534,17 @@ class ValidationResult:
         from validatex.reporting.html_report import HTMLReportGenerator
 
         generator = HTMLReportGenerator()
-        generator.generate(self, filepath)
+        generator.generate(self, filepath, store=store, history_limit=history_limit)
 
     def save_to_store(self, store_path: Optional[str] = None) -> int:
         """Log this validation run to a local RunStore database."""
         from validatex.storage.run_store import RunStore
 
         store = RunStore(db_path=store_path)
-        return store.log_run(self)
+        run_id = int(store.log_run(self))
+        self.run_id = run_id
+        self._store = store
+        return run_id
 
     def send_slack(self, webhook_url: Optional[str] = None, notify_on: str = "failure") -> bool:
         """

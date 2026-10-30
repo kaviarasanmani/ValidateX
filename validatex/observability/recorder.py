@@ -52,6 +52,7 @@ def record_run(
         result.row_count = get_row_count(target_data, engine)
         run_id = int(run_store.log_run(result))
         result.run_id = run_id
+        result._store = run_store
 
     if alert_policy is not None:
         result.alerts = alert_policy.evaluate(result, store=run_store)

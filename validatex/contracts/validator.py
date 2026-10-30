@@ -113,8 +113,8 @@ class ContractResult:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(self.to_json(), encoding="utf-8")
 
-    def to_html(self, filepath: str) -> None:
-        self.validation.to_html(filepath)
+    def to_html(self, filepath: str, store: Any = None, history_limit: int = 30) -> None:
+        self.validation.to_html(filepath, store=store, history_limit=history_limit)
 
     def summary(self) -> str:
         status = "PASSED" if self.success else "FAILED"

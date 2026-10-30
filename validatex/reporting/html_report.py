@@ -3,12 +3,13 @@ Rich HTML report generator for ValidateX.
 
 Produces a standalone, self-contained HTML page with:
   - Quality Score gauge
+  - Active Threshold Alerts banner
   - Column Health Summary table
+  - Interactive SVG Historical Quality Trend Chart, Failing Expectation Streaks & Schema Evolution
   - Severity-tagged expectation details
   - Mini CSS bar charts
   - Download buttons (JSON / CSV / Copy)
   - Human-readable observed values
-  - Drift comparison placeholder
   - Filter / toggle interactions
 """
 
@@ -19,7 +20,7 @@ import html
 import io
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
     from validatex.core.result import (
@@ -39,14 +40,21 @@ from validatex.core.result import (
 class HTMLReportGenerator:
     """Generate a beautiful standalone HTML report from a ValidationResult."""
 
-    def generate(self, result: "ValidationResult", filepath: str) -> None:
+    def generate(
+        self,
+        result: "ValidationResult",
+        filepath: str,
+        store: Any = None,
+        history_limit: int = 30,
+    ) -> None:
         import os
 
         dirname = os.path.dirname(filepath)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
         result.compute_statistics()
-        html_content = self._render(result)
+        active_store = store if store is not None else getattr(result, "_store", None)
+        html_content = self._render(result, store=active_store, history_limit=history_limit)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(html_content)
 
@@ -54,11 +62,18 @@ class HTMLReportGenerator:
     # Main renderer
     # ------------------------------------------------------------------
 
-    def _render(self, result: "ValidationResult") -> str:
+    def _render(
+        self,
+        result: "ValidationResult",
+        store: Any = None,
+        history_limit: int = 30,
+    ) -> str:
         stats = result.statistics
         quality_score = stats.get("quality_score", result.compute_quality_score())
         rows_html = self._render_rows(result.results)
         col_health_html = self._render_column_health(result.column_health())
+        alerts_html = self._render_alerts(getattr(result, "alerts", []))
+        history_html = self._render_history_section(result, store=store, history_limit=history_limit)
         status_class = "success" if result.success else "failure"
         status_text = "ALL PASSED" if result.success else "VALIDATION FAILED"
         status_icon = "✅" if result.success else "❌"
@@ -146,6 +161,8 @@ class HTMLReportGenerator:
     </div>
   </div>
 
+  {alerts_html}
+
   <!-- Stats Grid -->
   <div class="stats-grid animate delay-2">
     <div class="stat-card">
@@ -230,16 +247,8 @@ class HTMLReportGenerator:
     </div>
   </div>
 
-  <!-- Drift Placeholder -->
-  <div class="drift-card animate delay-3">
-    <h2>&#x1F4C8; Change From Last Run</h2>
-    <p class="drift-hint">
-      Enable drift detection by saving previous results and passing
-      <code>--compare previous_report.json</code> on your next run.
-      ValidateX will show row-count changes, new/dropped columns, and
-      null-percentage drift automatically.
-    </p>
-  </div>
+  <!-- Historical Trends / Change From Last Run -->
+  {history_html}
 
   <!-- Filters -->
   <div class="filters animate delay-3">
@@ -291,6 +300,259 @@ class HTMLReportGenerator:
 </script>
 </body>
 </html>"""
+
+    # ------------------------------------------------------------------
+    # Alerts banner
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _render_alerts(alerts: List[Any]) -> str:
+        if not alerts:
+            return ""
+        items: List[str] = []
+        for a in alerts:
+            sev = getattr(a, "severity", "warning")
+            rule = getattr(a, "rule", "alert")
+            msg = getattr(a, "message", str(a))
+            cls = "sev-critical" if sev == "critical" else "sev-warning"
+            items.append(
+                f'<div class="alert-item">'
+                f'<span class="sev-badge {cls}">{html.escape(sev.upper())}</span> '
+                f'<strong>{html.escape(rule)}</strong>: {html.escape(msg)}'
+                f"</div>"
+            )
+        return (
+            '<div class="section-card alert-banner animate delay-1">'
+            '<h2>&#x1F514; Triggered Observability Alerts</h2>'
+            f'<div class="alert-list">{"".join(items)}</div>'
+            "</div>"
+        )
+
+    # ------------------------------------------------------------------
+    # Historical Trends & Observability Section
+    # ------------------------------------------------------------------
+
+    def _render_history_section(
+        self,
+        result: "ValidationResult",
+        store: Any = None,
+        history_limit: int = 30,
+    ) -> str:
+        from validatex.observability.recorder import resolve_store
+
+        run_store = resolve_store(store)
+        if run_store is None:
+            return """<div class="drift-card animate delay-3">
+    <h2>&#x1F4C8; Historical Quality Trend &amp; Observability</h2>
+    <p class="drift-hint">
+      Enable embedded trend charts, failing expectation streaks, and schema evolution tracking by passing
+      <code>store=".validatex/runs.db"</code> to <code>vx.validate()</code> or <code>result.to_html("report.html", store=store)</code>.
+    </p>
+  </div>"""
+
+        dataset_name = result.dataset_name or result.data_source or result.suite_name
+        runs = list(reversed(run_store.get_runs(dataset_name=dataset_name, limit=history_limit)))
+        if not runs:
+            runs = list(reversed(run_store.get_runs(limit=history_limit)))
+            dataset_name = None
+
+        if not runs:
+            return """<div class="drift-card animate delay-3">
+    <h2>&#x1F4C8; Historical Quality Trend &amp; Observability</h2>
+    <p class="drift-hint">No historical runs recorded yet in RunStore.</p>
+  </div>"""
+
+        trend = run_store.quality_trend(dataset_name=dataset_name, limit=history_limit)
+        fail_trends = run_store.failed_expectation_trends(dataset_name=dataset_name, limit=history_limit)
+        schema_diffs = run_store.schema_changes(dataset_name)[-history_limit:] if dataset_name else []
+
+        dir_cls = {
+            "improving": "passed",
+            "degrading": "failed",
+            "stable": "info",
+        }.get(trend.direction, "info")
+        delta_val = trend.delta_from_mean or 0.0
+        delta_sign = "+" if delta_val >= 0 else ""
+
+        svg_chart = self._build_trend_svg(runs, mean_score=trend.mean or 0.0)
+
+        fail_html = ""
+        if fail_trends:
+            frows = []
+            for ft in fail_trends[:8]:
+                frows.append(
+                    f"<tr>"
+                    f"<td><strong>{html.escape(ft.expectation_type)}</strong></td>"
+                    f"<td>{html.escape(ft.column or '—')}</td>"
+                    f"<td>{html.escape(ft.severity or '—')}</td>"
+                    f'<td class="center failed-text">{ft.failures}/{ft.evaluations}</td>'
+                    f'<td class="center">{ft.failure_rate}%</td>'
+                    f'<td class="center">{ft.current_streak}</td>'
+                    f'<td class="center"><span class="badge {("failed" if ft.trend == "worsening" else "passed" if ft.trend == "improving" else "error")}">{html.escape(ft.trend)}</span></td>'
+                    f"</tr>"
+                )
+            fail_html = f"""
+    <div class="history-sub">
+      <h3>&#x1F525; Top Failing Expectations (Last {len(runs)} Runs)</h3>
+      <div class="col-health-wrap">
+        <table class="col-health-table">
+          <thead>
+            <tr>
+              <th>Expectation</th>
+              <th>Column</th>
+              <th>Severity</th>
+              <th class="center">Failures</th>
+              <th class="center">Failure Rate</th>
+              <th class="center">Active Streak</th>
+              <th class="center">Trajectory</th>
+            </tr>
+          </thead>
+          <tbody>{''.join(frows)}</tbody>
+        </table>
+      </div>
+    </div>"""
+
+        schema_html = ""
+        if schema_diffs:
+            srows = []
+            for sc in schema_diffs[-5:]:
+                tchanges = ", ".join(f"{k}: {v['from']}->{v['to']}" for k, v in sc.type_changes.items()) or "—"
+                srows.append(
+                    f"<tr>"
+                    f"<td class=\"center\">#{sc.run_id}</td>"
+                    f"<td>{html.escape(sc.timestamp[:19])}</td>"
+                    f'<td class="passed-text">{html.escape(", ".join(sc.added) or "—")}</td>'
+                    f'<td class="failed-text">{html.escape(", ".join(sc.removed) or "—")}</td>'
+                    f"<td>{html.escape(tchanges)}</td>"
+                    f"</tr>"
+                )
+            schema_html = f"""
+    <div class="history-sub">
+      <h3>&#x1F9EC; Schema Evolution History</h3>
+      <div class="col-health-wrap">
+        <table class="col-health-table">
+          <thead>
+            <tr>
+              <th class="center">Run</th>
+              <th>Timestamp</th>
+              <th>Added Columns</th>
+              <th>Removed Columns</th>
+              <th>Type Changes</th>
+            </tr>
+          </thead>
+          <tbody>{''.join(srows)}</tbody>
+        </table>
+      </div>
+    </div>"""
+
+        return f"""<div class="section-card history-card animate delay-3" id="historical-trends">
+    <h2>&#x1F4C8; Historical Quality Trend &amp; Observability ({len(runs)} Run{'s' if len(runs) != 1 else ''})</h2>
+    <div class="trend-kpis">
+      <div class="trend-kpi">
+        <span class="meta-key">Direction</span>
+        <span class="badge {dir_cls}">{html.escape(trend.direction.upper())}</span>
+      </div>
+      <div class="trend-kpi">
+        <span class="meta-key">Latest Score</span>
+        <span class="meta-val">{trend.latest}</span>
+      </div>
+      <div class="trend-kpi">
+        <span class="meta-key">Mean Score</span>
+        <span class="meta-val">{trend.mean}</span>
+      </div>
+      <div class="trend-kpi">
+        <span class="meta-key">Delta vs Mean</span>
+        <span class="meta-val">{delta_sign}{delta_val}</span>
+      </div>
+      <div class="trend-kpi">
+        <span class="meta-key">Range (Min–Max)</span>
+        <span class="meta-val">{trend.minimum} – {trend.maximum}</span>
+      </div>
+      <div class="trend-kpi">
+        <span class="meta-key">Slope</span>
+        <span class="meta-val">{trend.slope:+.2f} pts/run</span>
+      </div>
+    </div>
+    <div class="trend-chart-wrap">
+      {svg_chart}
+    </div>
+    {fail_html}
+    {schema_html}
+  </div>"""
+
+    @staticmethod
+    def _build_trend_svg(runs: List[dict], mean_score: float = 0.0) -> str:
+        width, height = 760, 220
+        pad_l, pad_r, pad_t, pad_b = 46, 24, 20, 36
+        plot_w = width - pad_l - pad_r
+        plot_h = height - pad_t - pad_b
+        n = len(runs)
+
+        def x_pos(idx: int) -> float:
+            if n <= 1:
+                return pad_l + plot_w / 2.0
+            return pad_l + (idx / (n - 1)) * plot_w
+
+        def y_pos(score: float) -> float:
+            clamped = max(0.0, min(100.0, float(score)))
+            return pad_t + plot_h - (clamped / 100.0) * plot_h
+
+        grid_lines = []
+        for level in (0, 25, 50, 75, 100):
+            gy = y_pos(level)
+            grid_lines.append(
+                f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{width - pad_r}" y2="{gy:.1f}" '
+                f'stroke="#2d2d50" stroke-dasharray="3,3" stroke-width="1"/>'
+                f'<text x="{pad_l - 8}" y="{gy + 4:.1f}" text-anchor="end" fill="#8888aa" font-size="11">{level}</text>'
+            )
+
+        mean_y = y_pos(mean_score)
+        mean_line = (
+            f'<line x1="{pad_l}" y1="{mean_y:.1f}" x2="{width - pad_r}" y2="{mean_y:.1f}" '
+            f'stroke="#a78bfa" stroke-dasharray="6,4" stroke-width="1.5" opacity="0.75"/>'
+            f'<text x="{width - pad_r - 4}" y="{max(pad_t + 12, mean_y - 5):.1f}" '
+            f'text-anchor="end" fill="#a78bfa" font-size="10">Mean {mean_score:.1f}</text>'
+        )
+
+        pts = [(x_pos(i), y_pos(float(r.get("quality_score") or 0.0)), r) for i, r in enumerate(runs)]
+        poly_points = " ".join(f"{x:.1f},{y:.1f}" for x, y, _ in pts)
+        area_points = f"{pts[0][0]:.1f},{pad_t + plot_h:.1f} " + poly_points + f" {pts[-1][0]:.1f},{pad_t + plot_h:.1f}"
+
+        circles = []
+        x_labels = []
+        label_step = max(1, n // 8)
+        for idx, (cx, cy, r) in enumerate(pts):
+            sc = float(r.get("quality_score") or 0.0)
+            color = "#00e676" if sc >= 90 else ("#ffc107" if sc >= 70 else "#ff5252")
+            run_id = r.get("run_id", idx + 1)
+            ts = str(r.get("timestamp", ""))[:19]
+            passed = r.get("passed_expectations", 0)
+            total = r.get("total_expectations", 0)
+            tooltip = html.escape(f"Run #{run_id} ({ts}) — Score: {sc:.1f}/100 ({passed}/{total} passed)")
+            circles.append(
+                f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}" stroke="#0f0f1a" stroke-width="2">'
+                f"<title>{tooltip}</title></circle>"
+            )
+            if idx % label_step == 0 or idx == n - 1:
+                x_labels.append(
+                    f'<text x="{cx:.1f}" y="{height - 10}" text-anchor="middle" fill="#8888aa" font-size="10">'
+                    f"#{run_id}</text>"
+                )
+
+        return f"""<svg class="trend-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Historical Quality Score Trend Chart">
+  <defs>
+    <linearGradient id="vxTrendGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6c63ff" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#6c63ff" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+  {''.join(grid_lines)}
+  {mean_line}
+  <polygon points="{area_points}" fill="url(#vxTrendGrad)"/>
+  <polyline points="{poly_points}" fill="none" stroke="#6c63ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  {''.join(circles)}
+  {''.join(x_labels)}
+</svg>"""
 
     # ------------------------------------------------------------------
     # Column Health rows
@@ -597,6 +859,20 @@ body {
 /* Section Card */
 .section-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); margin-bottom:24px; }
 .section-card h2 { padding:16px 20px; font-size:1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+
+/* Alert Banner */
+.alert-banner { border-color:rgba(255,82,82,.45); }
+.alert-list { padding:14px 20px; display:flex; flex-direction:column; gap:8px; }
+.alert-item { font-size:.9rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+/* Historical Trend Card */
+.trend-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; padding:16px 20px 8px; }
+.trend-kpi { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; }
+.trend-chart-wrap { padding:8px 20px 18px; }
+.trend-svg { width:100%; height:auto; max-height:240px; display:block; background:rgba(15,15,26,.45); border:1px solid var(--border); border-radius:8px; }
+.history-sub { border-top:1px solid var(--border); padding-top:12px; }
+.history-sub h3 { padding:8px 20px 12px; font-size:.95rem; color:var(--text-dim); }
+.badge.info { background:var(--info-bg); color:var(--info-blue); border:1px solid rgba(66,165,245,.25); }
 
 /* Column Health Table */
 .col-health-wrap { overflow-x:auto; }
