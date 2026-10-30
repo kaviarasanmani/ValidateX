@@ -41,3 +41,30 @@ An `ExpectationSuite` is a list of runtime checks. A `DataContract` (`validatex.
 
 ### Q8: How do I track historical quality scores, freshness, and volume anomalies?
 Pass `store=".validatex/runs.db"` (or a `RunStore` instance) to `vx.validate()` or `vx.validate_contract()`. You can then query `store.quality_trend()`, `store.failed_expectation_trends()`, `store.schema_changes()`, `vx.check_freshness()`, and `vx.detect_volume_anomaly()`, or inspect them from the terminal using `validatex history`.
+
+
+### Q9: Does ValidateX have a Web Dashboard?
+**Yes!** ValidateX includes a built-in, zero-dependency WSGI local web dashboard and static HTML export. Run:
+```bash
+validatex dashboard --port 8080 --browser
+```
+or generate an offline multi-dataset dashboard:
+```bash
+validatex dashboard --export dashboard.html
+```
+
+### Q10: How does ValidateX integrate with dbt?
+ValidateX provides a bi-directional bridge between dbt and ValidateX:
+- Convert dbt `schema.yml` models and tests into ValidateX `DataContract` objects (`validatex dbt import-schema`).
+- Export ValidateX contracts back to dbt `schema.yml` test configurations (`validatex dbt export-schema`).
+- Run native push-down SQL tests directly against your dbt warehouse (`validatex dbt test`).
+
+### Q11: How do I migrate existing Great Expectations suites to ValidateX?
+ValidateX includes an automated migrator CLI:
+```bash
+# Convert a GE suite into a ValidateX suite
+validatex migrate --from-ge great_expectations/expectations/my_suite.json --output my_suite.yaml
+
+# Convert a GE suite directly into a Data Contract
+validatex migrate --from-ge my_suite.json --output my_contract.yaml --as-contract --name customer_master --version 1.0.0
+```

@@ -20,13 +20,19 @@
 11. [Data Drift Detection](#11-data-drift-detection)
 12. [PySpark Engine](#12-pyspark-engine)
 13. [SQL Push-Down Engine](#13-sql-push-down-engine)
-14. [Apache Airflow Integration](#14-apache-airflow-integration)
-15. [CLI Reference](#15-cli-reference)
-16. [All Available Expectations](#16-all-available-expectations)
-17. [Custom Expectations](#17-custom-expectations)
-18. [Severity Levels & Quality Score](#18-severity-levels--quality-score)
-19. [CI/CD Integration](#19-cicd-integration)
-20. [Troubleshooting](#20-troubleshooting)
+14. [Polars Engine](#14-polars-engine)
+15. [Apache Airflow Integration](#15-apache-airflow-integration)
+16. [Data Contracts Engine](#16-data-contracts-engine)
+17. [Historical Observability & Alerting](#17-historical-observability--alerting)
+18. [Web Dashboard](#18-web-dashboard)
+19. [dbt Integration](#19-dbt-integration)
+20. [Great Expectations Migrator](#20-great-expectations-migrator)
+21. [CLI Reference](#21-cli-reference)
+22. [All Available Expectations](#22-all-available-expectations)
+23. [Custom Expectations](#23-custom-expectations)
+24: [Severity Levels & Quality Score](#24-severity-levels--quality-score)
+25. [CI/CD Integration](#25-cicd-integration)
+26. [Troubleshooting](#26-troubleshooting)
 
 ---
 
@@ -48,6 +54,12 @@
 pip install validatex
 ```
 
+### With Polars support
+
+```bash
+pip install "validatex[polars]"
+```
+
 ### With PySpark support
 
 ```bash
@@ -58,6 +70,12 @@ pip install "validatex[spark]"
 
 ```bash
 pip install "validatex[database]"
+```
+
+### With Web Dashboard support
+
+```bash
+pip install "validatex[dashboard]"
 ```
 
 ### Full install (everything)
@@ -623,7 +641,37 @@ result.to_html("db_report.html")
 
 ---
 
-## 14. Apache Airflow Integration
+## 14. Polars Engine
+
+ValidateX provides high-performance native validation for Polars DataFrames using multi-threaded Rust execution with zero-copy.
+
+### Basic Polars Validation
+
+```python
+import polars as pl
+import validatex as vx
+
+# Load dataset into a Polars DataFrame
+df = pl.read_parquet("orders.parquet")
+
+suite = (
+    vx.ExpectationSuite("polars_orders_suite")
+    .add("expect_column_to_not_be_null", column="order_id")
+    .add("expect_column_values_to_be_unique", column="order_id")
+    .add("expect_column_values_to_be_between", column="amount", min_value=0.01, max_value=50000.0)
+    .add("expect_column_values_to_be_in_set", column="status", allowed_set=["PENDING", "COMPLETED", "CANCELLED"])
+)
+
+# Engine is automatically detected as 'polars'
+result = vx.validate(df, suite)
+
+print(f"Quality Score: {result.quality_score}/100")
+result.to_html("polars_report.html")
+```
+
+---
+
+## 15. Apache Airflow Integration
 
 Gate your ETL pipelines based on data quality scores.
 
@@ -711,7 +759,166 @@ The operator pushes these values to Airflow XComs for downstream tasks:
 
 ---
 
-## 15. CLI Reference
+## 16. Data Contracts Engine
+
+ValidateX Data Contracts allow data engineering and product teams to establish version-controlled, declarative agreements defining schema, business quality rules, and ownership.
+
+### Defining a Contract in YAML (`customer_contract.yaml`)
+
+```yaml
+contract:
+  name: customer_master
+  version: 1.0.0
+  description: Canonical customer master data contract
+
+  owner:
+    team: customer_data
+    steward: customer_operations
+    contact: customer-team@company.com
+
+  schema:
+    - name: customer_id
+      type: integer
+      nullable: false
+    - name: email
+      type: string
+      nullable: false
+    - name: status
+      type: string
+      nullable: true
+
+  quality_rules:
+    - expectation: expect_column_values_to_be_unique
+      column: customer_id
+      severity: critical
+    - expectation: expect_column_values_to_match_regex
+      column: email
+      regex: "^[^@]+@[^@]+\\.[^@]+$"
+      severity: warning
+      owner: crm_team
+
+  thresholds:
+    minimum_quality_score: 95
+    max_critical_failures: 0
+```
+
+### Validating with a Contract in Python
+
+```python
+import validatex as vx
+
+contract = vx.DataContract.from_yaml("customer_contract.yaml")
+result = vx.validate_contract(df, contract)
+
+print(f"Contract Valid: {result.contract_passed}")
+print(f"Quality Score: {result.quality_score}/100")
+
+# Route failures by team or steward
+failures = result.failures_by_owner()
+for owner, errs in failures.items():
+    print(f"Alert {owner}: {len(errs)} broken rules")
+```
+
+### Breaking-Change Detection & Registry
+
+```python
+# Diff two contracts for backward compatibility
+diff = vx.compare_contracts(contract_v1, contract_v2)
+print(diff.has_breaking_changes)  # True/False
+
+# Enforce semantic versioning rules in an immutable registry
+registry = vx.ContractRegistry(".validatex/contracts")
+registry.register(contract_v1)
+```
+
+---
+
+## 17. Historical Observability & Alerting
+
+Turn individual validation runs into historical quality monitoring with SQLite `RunStore`.
+
+```python
+import validatex as vx
+
+store = vx.RunStore(".validatex/runs.db")
+
+# Run validation and save history
+result = vx.validate(
+    data=df,
+    suite=suite,
+    run_name="daily_pipeline_run",
+    dataset_name="customers",
+    store=store,
+)
+
+# 1. Historical quality score trends and trajectory
+trend = store.quality_trend("customers", limit=30)
+print(f"Trajectory: {trend.direction} (Mean: {trend.mean:.1f}, Slope: {trend.slope:.2f})")
+
+# 2. Chronically failing expectation streaks
+for item in store.failed_expectation_trends("customers", limit=20):
+    if item.current_streak > 1:
+        print(f"Streak {item.current_streak}x: {item.expectation_type} on {item.column}")
+
+# 3. Automated Volume Anomaly Detection
+anomaly = vx.detect_volume_anomaly(store, "customers", current_count=len(df))
+if anomaly.is_anomaly:
+    print(f"WARNING: Row count anomaly detected! Score: {anomaly.score:.2f}")
+
+# 4. Data Freshness Checks
+freshness = vx.check_freshness(df, timestamp_column="updated_at", max_age_hours=24)
+print(f"Data Fresh: {freshness.is_fresh} (Age: {freshness.age_hours:.1f} hrs)")
+```
+
+---
+
+## 18. Web Dashboard
+
+Launch the zero-dependency WSGI dashboard to monitor multi-dataset quality health and contracts:
+
+```bash
+# Start local live dashboard
+validatex dashboard --port 8080 --browser
+
+# Or export static standalone HTML dashboard
+validatex dashboard --export company_dq_dashboard.html
+```
+
+---
+
+## 19. dbt Integration
+
+ValidateX integrates seamlessly with your dbt project:
+
+```bash
+# Generate ValidateX contracts from dbt schema.yml
+validatex dbt import-schema models/schema.yml --output contracts/
+
+# Export ValidateX contracts back into dbt schema test format
+validatex dbt export-schema contracts/customer_contract.yaml --output models/schema.yml
+
+# Run native push-down SQL tests directly against dbt models
+validatex dbt test --models customers,orders --db-url "postgresql://user:pass@localhost:5432/analytics"
+```
+
+---
+
+## 20. Great Expectations Migrator
+
+Migrate your existing Great Expectations JSON suites directly to ValidateX:
+
+```bash
+# Convert to ValidateX YAML suite
+validatex migrate --from-ge great_expectations/expectations/my_suite.json --output suite.yaml
+
+# Convert directly to a version-controlled Data Contract
+validatex migrate --from-ge my_suite.json --output contract.yaml \
+  --as-contract --name customer_master --version 1.0.0
+```
+
+---
+
+## 21. CLI Reference
 
 ```bash
 # Show all commands
@@ -737,6 +944,28 @@ validatex run --checkpoint checkpoint.yaml
 
 # List all available expectation types
 validatex list-expectations
+
+# Data Contract commands
+validatex contract lint contract.yaml
+validatex contract validate --data data.csv --contract contract.yaml --strict
+validatex contract diff contract_v1.yaml contract_v2.yaml --fail-on-breaking --check-version
+validatex contract register contract.yaml --registry-dir .validatex/contracts
+
+# Historical Observability commands
+validatex history --store .validatex/runs.db --dataset customers --limit 20
+
+# Multi-Dataset Web Dashboard
+validatex dashboard --store .validatex/runs.db --port 8080 --browser
+validatex dashboard --export dashboard.html
+
+# dbt Integration commands
+validatex dbt import-schema models/schema.yml --output contracts/
+validatex dbt export-schema contracts/orders.yaml --output models/schema.yml
+validatex dbt test --models customers,orders --db-url "postgresql://localhost:5432/analytics"
+
+# Great Expectations Suite Migrator
+validatex migrate --from-ge great_expectations/expectations/customers.json --output suite.yaml
+validatex migrate --from-ge customers.json --output contract.yaml --as-contract --name customers --version 1.0.0
 ```
 
 ### Checkpoint YAML
@@ -755,7 +984,7 @@ validatex run --checkpoint checkpoint.yaml
 
 ---
 
-## 16. All Available Expectations
+## 22. All Available Expectations
 
 ### Column-Level (36 expectations)
 
@@ -834,7 +1063,7 @@ validatex run --checkpoint checkpoint.yaml
 
 ---
 
-## 17. Custom Expectations
+## 23. Custom Expectations
 
 Create your own expectations by subclassing `Expectation`:
 
@@ -882,7 +1111,7 @@ result = vx.validate(df, suite)
 
 ---
 
-## 18. Severity Levels & Quality Score
+## 24. Severity Levels & Quality Score
 
 Every expectation has a severity that affects the weighted quality score.
 
@@ -921,7 +1150,7 @@ A critical failure counts 3× more than an info failure.
 
 ---
 
-## 19. CI/CD Integration
+## 25. CI/CD Integration
 
 ### GitHub Actions
 
@@ -1037,7 +1266,7 @@ sys.exit(0)
 
 ---
 
-## 20. Troubleshooting
+## 26. Troubleshooting
 
 ### `ModuleNotFoundError: No module named 'validatex'`
 

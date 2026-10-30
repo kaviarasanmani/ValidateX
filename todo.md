@@ -1,6 +1,6 @@
 # ValidateX Development Todo List
 
-This file tracks the status of the ValidateX development tasks and roadmap features.
+This file tracks the status of the ValidateX development tasks and upcoming roadmap features.
 
 ## Completed Tasks
 - [x] **v1.2.0 Release & Distribution**: Setup package dependencies, `pyproject.toml`, and twine distribution to PyPI.
@@ -17,9 +17,14 @@ This file tracks the status of the ValidateX development tasks and roadmap featu
 - [x] **Great Expectations Migrator**: Implement programmatic and CLI converter (`validatex migrate --from-ge suite.json --output suite.yaml [--as-contract]`) to import Great Expectations JSON/YAML suites into ValidateX suites and Data Contracts (`validatex/migrations/ge_migrator.py`).
 - [x] **Web Dashboard**: Create a zero-dependency WSGI web dashboard and static HTML exporter (`validatex dashboard`) backed by `RunStore` and `ContractRegistry` for multi-dataset quality monitoring, drilldowns, and contract governance (`validatex/dashboard/server.py`).
 - [x] **dbt Integration**: Build a two-way dbt `schema.yml` & `manifest.json` bridge (`contracts_from_dbt_schema`, `save_dbt_schema`, `parse_dbt_manifest`) and SQL validation runner (`run_dbt_validations`, `validatex dbt {import-schema,export-schema,test}`) (`validatex/integrations/dbt.py`).
+- [x] **v1.3.0 Release Preparation & Pre-Flight Audit**: Version bumped to 1.3.0 across codebase, PEP 517 build-system configured, sdist and wheel built and validated with `twine check`, 292 tests and linters 100% passing.
 
 ## In Progress
-*(All planned roadmap items completed!)*
+*(None - All planned v1.3.0 roadmap items are fully developed, verified, and audited)*
 
-## Upcoming Work
-*(Future community extensions)*
+## Upcoming Work (Strategic Post-v1.3.0 Roadmap)
+- [ ] **Cloud RunStore Storage Adapters**: Pluggable storage providers for AWS S3, Google Cloud Storage, Azure Blob Storage, and shared PostgreSQL for enterprise teams.
+- [ ] **dbt Cloud & CI Webhook Automation**: Trigger ValidateX contract validations directly from dbt Cloud job webhooks or GitHub Action check-runs on pull request merge.
+- [ ] **Real-Time Streaming & Kafka Contract Validator**: Micro-batch and continuous event stream data contract validation for Kafka and Redpanda topics.
+- [ ] **ML Feature Store Observability**: Pre-built contract blueprints and PSI drift triggers for Feast and Hopsworks feature stores.
+- [ ] **Catalog Connectors**: Automated bi-directional contract and metadata synchronization with OpenMetadata, DataHub, and AWS Glue Data Catalog.

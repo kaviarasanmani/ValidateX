@@ -11,8 +11,11 @@ Subpackages
    validatex.config
    validatex.contracts
    validatex.core
+   validatex.dashboard
    validatex.datasources
    validatex.expectations
+   validatex.integrations
+   validatex.migrations
    validatex.observability
    validatex.profiler
    validatex.reporting
