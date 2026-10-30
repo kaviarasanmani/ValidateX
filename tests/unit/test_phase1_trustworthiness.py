@@ -56,7 +56,12 @@ except ImportError:
 def build_all_50_expectations_suite(suite_name: str = "all_50_audit") -> vx.ExpectationSuite:
     """Build a suite containing every single one of the 50 registered expectations."""
     suite = (
-        vx.ExpectationSuite(suite_name, version="1.0.0", owner="qa-trust-team", description="50-expectation audit")
+        vx.ExpectationSuite(
+            suite_name,
+            version="1.0.0",
+            owner="qa-trust-team",
+            meta={"description": "50-expectation audit"},
+        )
         # Table expectations (5)
         .add("expect_table_row_count_to_equal", value=5)
         .add("expect_table_row_count_to_be_between", min_value=1, max_value=10)
@@ -450,10 +455,10 @@ def test_boundary_conditions_across_engines():
     """Test allow_zero, or_equal, strictly, and 1-row sequential/statistical edge cases."""
     df_pd = pd.DataFrame(
         {
-            "non_neg": [0, 1, 2],
-            "non_pos": [0, -1, -2],
-            "a": [10, 20, 30],
-            "b": [10, 15, 25],
+            "non_neg": [0, 1, 2, 3],
+            "non_pos": [0, -1, -2, -3],
+            "a": [10, 20, 30, 40],
+            "b": [10, 15, 25, 35],
             "inc": [1, 2, 2, 3],
             "dec": [3, 2, 2, 1],
         }

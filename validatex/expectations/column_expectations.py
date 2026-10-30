@@ -175,7 +175,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
         dup_values = df.loc[dup_mask, self.column].unique().tolist()[:20]
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{distinct_count} unique out of {total}",
+            observed_value=f"{distinct_count} unique values out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
@@ -212,7 +212,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
 
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{distinct} unique out of {total}",
+            observed_value=f"{distinct} unique values out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
@@ -233,7 +233,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
         pct = (dup_count / total * 100) if total > 0 else 0.0
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{distinct_count} unique out of {total}",
+            observed_value=f"{distinct_count} unique values out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
@@ -252,7 +252,7 @@ class ExpectColumnValuesToBeUnique(Expectation):
         dup_values = df.filter(pl.col(col).is_duplicated())[col].unique().to_list()[:20]
         return self._build_result(
             success=(dup_count == 0),
-            observed_value=f"{distinct_count} unique out of {total}",
+            observed_value=f"{distinct_count} unique values out of {total}",
             element_count=total,
             unexpected_count=dup_count,
             unexpected_percent=pct,
