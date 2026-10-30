@@ -307,7 +307,7 @@ class ExpectColumnValuesToSatisfy(Expectation):
         series = df[self.column].dropna()
         total = len(series)
         try:
-            result_mask = series.apply(condition)
+            result_mask = series.apply(condition).astype(bool) if total > 0 else pd.Series(dtype=bool)
         except Exception as e:
             raise ValueError(f"Your condition raised an error: {e}")
 

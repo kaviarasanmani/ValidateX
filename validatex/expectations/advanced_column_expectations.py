@@ -35,7 +35,9 @@ class ExpectColumnValuesToNotMatchRegex(Expectation):
         pattern = re.compile(regex)
 
         # We want values that DO NOT match. So values that MATCH are "unexpected"
-        unexpected_mask = series.apply(lambda x: bool(pattern.search(x)))
+        unexpected_mask = (
+            series.apply(lambda x: bool(pattern.search(x))).astype(bool) if total > 0 else pd.Series(dtype=bool)
+        )
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
@@ -114,7 +116,8 @@ class ExpectColumnValuesToBeValidEmail(Expectation):
         # Basic functional email regex
         pattern = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$")
 
-        unexpected_mask = ~series.apply(lambda x: bool(pattern.match(x)))
+        match_mask = series.apply(lambda x: bool(pattern.match(x))).astype(bool) if total > 0 else pd.Series(dtype=bool)
+        unexpected_mask = ~match_mask
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
 
@@ -192,7 +195,7 @@ class ExpectColumnValuesToBeJsonParseable(Expectation):
             except (ValueError, TypeError):
                 return False
 
-        expected_mask = series.apply(is_json)
+        expected_mask = series.apply(is_json).astype(bool) if total > 0 else pd.Series(dtype=bool)
         unexpected_mask = ~expected_mask
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
@@ -529,7 +532,7 @@ class ExpectColumnValueLengthsToEqual(Expectation):
         series = df[self.column].dropna().astype(str)
         total = len(series)
 
-        lengths = series.apply(len)
+        lengths = series.apply(len) if total > 0 else pd.Series(dtype=int)
         unexpected_mask = lengths != value
         unexpected_count = int(unexpected_mask.sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0

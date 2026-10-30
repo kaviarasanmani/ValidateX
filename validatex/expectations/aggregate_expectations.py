@@ -39,7 +39,7 @@ class ExpectColumnPairValuesAToBeGreaterThanB(Expectation):
         if col_b is None:
             raise ValueError("column_b is required")
 
-        valid = df[[col_a, col_b]].dropna()
+        valid = df[df[col_a].notna() & df[col_b].notna()]
         total = len(valid)
 
         if or_equal:
@@ -178,7 +178,7 @@ class ExpectColumnPairValuesToBeEqual(Expectation):
         if col_b is None:
             raise ValueError("column_b is required")
 
-        valid = df[[col_a, col_b]].dropna()
+        valid = df[df[col_a].notna() & df[col_b].notna()]
         total = len(valid)
         unexpected_mask = valid[col_a] != valid[col_b]
         unexpected_count = int(unexpected_mask.sum())

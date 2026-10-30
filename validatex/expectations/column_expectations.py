@@ -666,7 +666,9 @@ class ExpectColumnValuesToMatchRegex(Expectation):
         series = df[self.column].dropna().astype(str)
         total = len(series)
         pattern = re.compile(regex)
-        match_mask = series.apply(lambda x: bool(pattern.search(x)))
+        match_mask = (
+            series.apply(lambda x: bool(pattern.search(x))).astype(bool) if total > 0 else pd.Series(dtype=bool)
+        )
         unexpected_count = int((~match_mask).sum())
         pct = (unexpected_count / total * 100) if total > 0 else 0.0
         unexpected_vals = series[~match_mask].tolist()[:20]
